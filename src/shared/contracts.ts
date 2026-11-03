@@ -48,6 +48,16 @@ export const polishSchema = z.object({
   provider: z.string().max(60).optional()
 });
 
+export interface DataLocationStatus {
+  path: string;
+  defaultPath: string;
+  custom: boolean;
+  warning: string;
+  canceled?: boolean;
+  migrated?: boolean;
+  message?: string;
+}
+
 export interface DesktopAPI {
   load(): Promise<WorkbenchSnapshot | null>;
   save(snapshot: WorkbenchSnapshot): Promise<void>;
@@ -58,6 +68,7 @@ export interface DesktopAPI {
   onUpdate?(listener: (status: UpdateStatus) => void): () => void;
   openExternal?(url: string): Promise<{ opened: boolean }>;
   remoteAccess?(payload: unknown): Promise<{ running: boolean; busy: boolean; url: string; localURL: string; message: string; hasPassword: boolean }>;
+  dataLocation?(payload: unknown): Promise<DataLocationStatus>;
   polish(payload: unknown): Promise<{ text: string; model: string; provider: string }>;
   captureTask(payload: unknown): Promise<{ title: string; model: string }>;
   chat(payload: unknown): Promise<ChatResult>;

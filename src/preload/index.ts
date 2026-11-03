@@ -13,6 +13,7 @@ const api: DesktopAPI = {
     return () => ipcRenderer.removeListener('workbench:update-status', handler);
   },
   remoteAccess: payload => ipcRenderer.invoke('workbench:remote-access', payload),
+  dataLocation: payload => ipcRenderer.invoke('workbench:data-location', payload),
   openExternal: url => ipcRenderer.invoke('workbench:open-external', url),
   polish: payload => ipcRenderer.invoke('workbench:polish', payload),
   captureTask: payload => ipcRenderer.invoke('workbench:capture-task', payload),

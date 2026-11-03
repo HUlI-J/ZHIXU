@@ -1,51 +1,91 @@
 /* Remote access controls live in the host application, never in a shared page. */
 let remoteStatusTimer;
+let remoteStatus = { running: false, busy: false };
+function generateAccessPassword() {
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+}
+async function copyRemotePassword(value) {
+  if (!value) return false;
+  try { await navigator.clipboard.writeText(value); return true; }
+  catch { return false; }
+}
 function reloadWorkbench() {
   if (window.xiaoyuDesktop?.reload) void window.xiaoyuDesktop.reload();
   else location.reload();
 }
+function paintRemoteStatus(result) {
+  remoteStatus = result;
+  const label = document.getElementById('remote-access-status');
+  if (!label) return;
+  label.textContent = result.message;
+  const url = document.getElementById('remote-url');
+  if (url) url.value = result.running ? result.url : '';
+  const start = document.querySelector('.remote-modal [data-action="remote-start"]');
+  const stop = document.querySelector('.remote-modal [data-action="remote-stop"]');
+  if (start) start.hidden = result.running;
+  if (stop) stop.hidden = !result.running;
+  document.querySelectorAll('.remote-modal .modal-foot button,.remote-modal [data-action="remote-password-generate"],.remote-modal [data-action="remote-password-copy"]')
+    .forEach(button => { button.disabled = result.busy; });
+}
+async function refreshRemoteStatus() {
+  if (!window.xiaoyuDesktop?.remoteAccess) return undefined;
+  const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'status' });
+  if (document.getElementById('remote-access-status')) paintRemoteStatus(result);
+  return result;
+}
+function setRemoteBusy(busy) {
+  document.querySelectorAll('.remote-modal .modal-foot button,.remote-modal [data-action="remote-password-generate"],.remote-modal [data-action="remote-password-copy"]')
+    .forEach(button => { button.disabled = busy; });
+}
 function openRemoteAccess() {
   if (!window.xiaoyuDesktop?.remoteAccess) return;
   localModal('网页访问', `<div class="field">
-      <label for="remote-password">访问密码</label><input class="input" type="password" id="remote-password"
-      autocomplete="new-password" minlength="12" maxlength="200" placeholder="首次开启至少 12 个字符，之后留空沿用">
+      <label for="remote-password">访问密码</label><input class="input" type="text" id="remote-password"
+      autocomplete="new-password" minlength="12" maxlength="200" placeholder="开启时自动生成，也可以手动输入">
+      <p class="hint">开启时留空会自动生成强密码并显示在这里。密码只保存哈希，关闭窗口后无法再次查看；忘记时点“生成密码”重置。</p>
+      <p id="remote-password-note" class="small muted mt-8" hidden></p>
     </div>
     <div class="row gap-8 mt-12"><button class="btn btn-sm" data-action="remote-password-generate">${icon('refresh', 13)} 生成密码</button>
       <button class="btn btn-sm" data-action="remote-password-copy">${icon('copy', 13)} 复制密码</button></div>
     <div class="field mt-16"><label for="remote-url">HTTPS 地址</label><input class="input" id="remote-url" readonly placeholder="开启后显示">
       <button class="btn btn-sm mt-12" data-action="remote-url-copy">${icon('copy', 13)} 复制地址</button></div>
-    <p class="small muted">主机需保持知序运行、联网且不休眠。重新开启后地址可能变化；关闭访问或修改密码会退出已登录设备。</p>
+    <p class="small muted">主机需保持知序运行、联网且不休眠。重新开启后地址可能变化；关闭访问或重置密码会退出已登录设备。</p>
     <p id="remote-access-status" class="remote-feedback" role="status"></p>`,
-    `<button class="btn" data-action="remote-stop">关闭访问</button>
-    <button class="btn" data-action="remote-password">修改密码</button>
+    `<button class="btn" data-action="remote-stop" hidden>关闭访问</button>
     <button class="btn btn-primary" data-action="remote-start">${icon('link', 13)} 开启网页访问</button>`, 'remote-modal');
-  const update = async () => {
-    if (!document.getElementById('remote-access-status')) { clearInterval(remoteStatusTimer); return; }
-    try {
-      const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'status' });
-      const label = document.getElementById('remote-access-status');
-      if (!label) return;
-      label.textContent = result.message;
-      document.getElementById('remote-url').value = result.running ? result.url : '';
-      document.querySelectorAll('.remote-modal [data-action="remote-start"],.remote-modal [data-action="remote-stop"],.remote-modal [data-action="remote-password"]')
-        .forEach(button => { button.disabled = result.busy; });
-    } catch (error) {
-      const label = document.getElementById('remote-access-status');
-      if (label) label.textContent = error.message;
-    }
-  };
   clearInterval(remoteStatusTimer);
-  void update();
-  remoteStatusTimer = setInterval(update, 2000);
+  void refreshRemoteStatus();
+  remoteStatusTimer = setInterval(() => { void refreshRemoteStatus().catch(() => {}); }, 2000);
 }
 
 async function remoteAction(action) {
   if (action === 'remote-settings') { openRemoteAccess(); return; }
   const password = document.getElementById('remote-password');
+  const status = document.getElementById('remote-access-status');
+  const note = document.getElementById('remote-password-note');
   if (action === 'remote-password-generate') {
-    const bytes = crypto.getRandomValues(new Uint8Array(18));
-    password.value = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
-    password.type = 'text'; return;
+    const value = generateAccessPassword();
+    if (password) { password.value = value; password.type = 'text'; }
+    if (remoteStatus.running) {
+      setRemoteBusy(true);
+      if (status) status.textContent = '正在应用新密码并重新开启网页访问…';
+      try {
+        await window.xiaoyuDesktop.remoteAccess({ operation: 'password', password: value });
+        const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'start' });
+        if (password?.isConnected) { password.value = value; password.type = 'text'; }
+        if (note?.isConnected) { note.hidden = false; note.textContent = '新密码已应用；旧密码和原登录会话已失效。'; }
+        paintRemoteStatus(result);
+        const copied = await copyRemotePassword(value);
+        showToast(copied ? '新密码已生成、应用并复制' : '新密码已生成并应用，请点击“复制密码”');
+      } catch (error) {
+        if (status?.isConnected) status.textContent = error.message;
+      } finally { setRemoteBusy(false); }
+      return;
+    }
+    if (note?.isConnected) { note.hidden = false; note.textContent = '已生成新密码；点击“开启网页访问”后生效。'; }
+    showToast('已生成新密码，开启网页访问后生效');
+    return;
   }
   if (action.endsWith('-copy')) {
     const field = action === 'remote-url-copy' ? document.getElementById('remote-url') : password;
@@ -54,19 +94,98 @@ async function remoteAction(action) {
     catch { field.select(); showToast('请复制已选中的内容'); }
     return;
   }
-  const status = document.getElementById('remote-access-status');
+  if (action === 'remote-start') {
+    let generated = false;
+    if (password && !password.value.trim()) {
+      password.value = generateAccessPassword();
+      password.type = 'text';
+      generated = true;
+    }
+    const value = password?.value || '';
+    setRemoteBusy(true);
+    if (status) status.textContent = generated ? '正在自动生成密码并开启网页访问…' : '正在开启网页访问…';
+    try {
+      await persistWorkbench();
+      const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'start', password: value || undefined });
+      if (password?.isConnected) { password.value = value; password.type = 'text'; }
+      if (note?.isConnected && generated) { note.hidden = false; note.textContent = '访问密码已自动生成，请立即复制保存。'; }
+      paintRemoteStatus(result);
+      if (generated) {
+        const copied = await copyRemotePassword(value);
+        showToast(copied ? '访问密码已自动生成并复制' : '访问密码已自动生成，请点击“复制密码”');
+      }
+    } catch (error) {
+      if (status?.isConnected) status.textContent = error.message;
+    } finally { setRemoteBusy(false); }
+    return;
+  }
+  setRemoteBusy(true);
+  if (status) status.textContent = '正在处理…';
   try {
-    if (action === 'remote-start') await persistWorkbench();
-    document.querySelectorAll('.remote-modal .modal-foot button').forEach(button => { button.disabled = true; });
-    if (status) status.textContent = '正在处理…';
-    const result = await window.xiaoyuDesktop.remoteAccess({ operation: action.slice('remote-'.length), password: password?.value || undefined });
-    if (password?.isConnected) { password.value = ''; password.type = 'password'; }
+    const result = await window.xiaoyuDesktop.remoteAccess({ operation: action.slice('remote-'.length) });
     if (status?.isConnected) status.textContent = result.message;
+    paintRemoteStatus(result);
   } catch (error) {
     if (status?.isConnected) status.textContent = error.message;
   } finally {
-    document.querySelectorAll('.remote-modal .modal-foot button').forEach(button => { button.disabled = false; });
+    setRemoteBusy(false);
   }
+}
+
+async function refreshDataLocation() {
+  const path = document.getElementById('data-location-path');
+  if (!path) return;
+  if (!window.xiaoyuDesktop?.dataLocation) {
+    path.textContent = '网页预览不显示本机数据位置，请在安装版中查看。';
+    document.querySelectorAll('[data-action^="data-location-"]').forEach(button => { button.disabled = true; });
+    return;
+  }
+  try {
+    const status = await window.xiaoyuDesktop.dataLocation({ operation: 'status' });
+    path.textContent = status.path;
+    const note = document.getElementById('data-location-note');
+    if (note) {
+      note.hidden = !status.warning;
+      note.textContent = status.warning || '';
+      note.classList.toggle('error', !!status.warning);
+    }
+  } catch (error) {
+    path.textContent = error.message;
+  }
+}
+
+async function dataLocationAction(action) {
+  if (!window.xiaoyuDesktop?.dataLocation) { showToast('请在安装版中更改数据位置'); return; }
+  const note = document.getElementById('data-location-note');
+  if (action === 'data-location-change') {
+    if (!confirm('更改数据位置会先保存当前工作，再把数据库、附件和插件配置复制到新文件夹，然后重启知序。原位置会保留一份完整副本。继续吗？')) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'data-migration-overlay';
+    overlay.innerHTML = '<div><strong>正在迁移工作数据…</strong><span>请勿关闭知序，完成后会自动重启。</span></div>';
+    document.body.append(overlay);
+    try {
+      const result = await window.xiaoyuDesktop.dataLocation({ operation: 'choose' });
+      if (result.canceled) { overlay.remove(); return; }
+      if (note) { note.hidden = false; note.textContent = result.message || '正在重启知序…'; }
+    } catch (error) {
+      overlay.remove();
+      if (note) { note.hidden = false; note.textContent = error.message; }
+      showToast(error.message || '更改数据位置失败');
+    }
+    return;
+  }
+  try { await window.xiaoyuDesktop.dataLocation({ operation: 'open' }); }
+  catch (error) { showToast(error.message || '无法打开数据文件夹'); }
+}
+
+async function prepareDataMigration() {
+  if (!workbenchReady || state.chatSending || state.documentImportBusy || state.documentReparsing || state.documentAnalyzing ||
+      state.providerDiagnosing || Object.values(state.integrationBusy || {}).some(Boolean) || DB.runningTimer ||
+      document.getElementById('workbench-sync-notice')) return false;
+  const modal = document.querySelector('#modal-root .modal');
+  if (modal && !modal.classList.contains('profile-modal')) return false;
+  await persistWorkbench();
+  return true;
 }
 
 function workbenchSyncNotice(message) {

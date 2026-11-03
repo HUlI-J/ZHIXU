@@ -92,6 +92,7 @@ function handleClick(e) {
   const action = el.dataset.action;
   if (action.startsWith('update-')) { void desktopUpdateAction(action); return; }
   if (action.startsWith('remote-')) { void remoteAction(action); return; }
+  if (action.startsWith('data-location-')) { void dataLocationAction(action); return; }
   if (action === 'web-logout') {
     void persistWorkbench().then(() => window.xiaoyuDesktop.logout())
       .then(() => location.replace('/login')).catch(error => showToast(error.message));

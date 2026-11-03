@@ -21,6 +21,7 @@ import updater from 'electron-updater';
 import { dirname } from 'node:path';
 import { Updates, UpdatePreparationError, updateFeedConfig } from './updates';
 import { configureUpdateTransport } from './update-http';
+import { assertMigrationTarget, dataLocationStatus, migrateData, readDataLocation, validateEmptyTarget, writeDataLocation } from './data-location';
 
 let store: WorkbenchStore;
 let window: BrowserWindow | null = null;
@@ -38,7 +39,12 @@ async function pdfBytes(title: string, text: string) {
 }
 
 const dataOverride = process.env.XIAOYU_DATA_DIR;
-const userDataPath = dataOverride || join(app.getPath('appData'), 'Xiaoyu');
+const defaultDataPath = join(app.getPath('appData'), 'Xiaoyu');
+const savedLocation = dataOverride
+  ? { path: resolve(dataOverride), warning: '' }
+  : readDataLocation(defaultDataPath);
+const userDataPath = savedLocation.path;
+const dataLocationWarning = savedLocation.warning;
 mkdirSync(userDataPath, { recursive: true });
 app.setPath('userData', userDataPath);
 app.setName('知序');
@@ -239,6 +245,13 @@ else {
     });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());
+    if (dataLocationWarning) {
+      window.webContents.once('did-finish-load', () => {
+        if (!window || window.isDestroyed()) return;
+        void dialog.showMessageBox(window, { type: 'warning', title: '数据位置不可用',
+          message: '已选择的数据位置暂时不可用', detail: dataLocationWarning, buttons: ['知道了'] });
+      });
+    }
     const workspace = new Workspace(window);
     const plugins = new Plugins(join(dataDir, 'plugins'), window, {
       encrypt(value) {
@@ -254,6 +267,53 @@ else {
     ipcMain.handle('workbench:workspace', (event, payload: unknown) => {
       checkSender(event);
       return workspace.handle(payload);
+    });
+    let migrating = false;
+    const locationStatus = () => dataLocationStatus(defaultDataPath, dataDir, dataLocationWarning);
+    ipcMain.handle('workbench:data-location', async (event, payload: unknown) => {
+      checkSender(event);
+      const request = z.discriminatedUnion('operation', [
+        z.object({ operation: z.literal('status') }),
+        z.object({ operation: z.literal('open') }),
+        z.object({ operation: z.literal('choose') })
+      ]).parse(payload);
+      if (request.operation === 'status') return locationStatus();
+      if (request.operation === 'open') {
+        const failure = await shell.openPath(dataDir);
+        if (failure) throw new Error(failure);
+        return locationStatus();
+      }
+      if (dataOverride) throw new Error('当前使用测试数据目录，不能在应用内更改数据位置');
+      if (migrating) throw new Error('正在迁移数据，请稍候');
+      const picked = await dialog.showOpenDialog(window!, {
+        title: '选择知序数据文件夹',
+        buttonLabel: '使用此文件夹',
+        properties: ['openDirectory', 'createDirectory']
+      });
+      if (picked.canceled || !picked.filePaths[0]) return { ...locationStatus(), canceled: true };
+      const target = await validateEmptyTarget(picked.filePaths[0]);
+      assertMigrationTarget(dataDir, target);
+      const ready = await window!.webContents.executeJavaScript(
+        'typeof prepareDataMigration === "function" ? prepareDataMigration() : persistWorkbench().then(() => true)');
+      if (ready === false) throw new Error('请先完成当前对话、文件处理或计时，再更改数据位置。');
+      migrating = true;
+      try {
+        await remoteAccess?.stop();
+        updates?.dispose();
+        await migrateData(dataDir, target, path => store.backup(path));
+        await plugins.dispose();
+        workspace.dispose();
+        writeDataLocation(defaultDataPath, target);
+        setTimeout(() => {
+          try { store.close(); } catch { /* The copied database is already verified. */ }
+          app.relaunch();
+          app.exit(0);
+        }, 1200);
+        return { ...dataLocationStatus(defaultDataPath, target), migrated: true, message: '数据已迁移，正在重启知序…' };
+      } catch (error) {
+        migrating = false;
+        throw error;
+      }
     });
     let closing = false;
     updates = new Updates(join(dataDir, 'updates.json'), {

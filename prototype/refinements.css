@@ -340,6 +340,11 @@ summary { cursor: pointer; }
 .settings-status { margin: 10px 0 0 !important; min-height: 18px; font-size: 12px; color: var(--ink-2); }
 .settings-status.error { color: var(--red); }
 .settings-meta { margin: 6px 0 0; font-size: 11px; color: var(--ink-3); }
+.settings-meta.error { color: var(--red); }
+.data-migration-overlay { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 24px; background: rgba(17, 18, 20, .58); backdrop-filter: blur(4px); }
+.data-migration-overlay > div { display: flex; flex-direction: column; gap: 6px; padding: 22px 26px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); text-align: center; }
+.data-migration-overlay strong { font-size: 15px; }
+.data-migration-overlay span { font-size: 12px; color: var(--ink-3); }
 .settings-note { display: flex; align-items: flex-start; gap: 6px; margin: 2px 2px 0; font-size: 11px; line-height: 1.6; color: var(--ink-3); }
 .settings-note svg { flex: 0 0 auto; margin-top: 2px; }
 .update-version-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }

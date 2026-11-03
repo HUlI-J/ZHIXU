@@ -372,7 +372,13 @@ function openProfileSettings(tab = 'general') {
               <section class="settings-card">
                 <div class="settings-card-body">
                   <div class="settings-card-title">数据与隐私</div>
-                  <p class="settings-card-desc">工作数据保存在本机 %APPDATA%\Xiaoyu。只有主动使用 AI 或网页访问时，相关内容才会按你的配置发送。</p>
+                  <p class="settings-card-desc">工作数据保存在本机，不会上传到 GitHub。默认位置为 %APPDATA%\Xiaoyu，也可以自己选择保存文件夹；更改时会复制现有数据后重启知序。</p>
+                  <code class="about-link-text" id="data-location-path">正在读取数据位置…</code>
+                  <p class="settings-meta" id="data-location-note" hidden></p>
+                </div>
+                <div class="settings-card-side">
+                  <button class="btn btn-sm" data-action="data-location-open">${icon('folder', 12)} 打开文件夹</button>
+                  <button class="btn btn-sm" data-action="data-location-change">${icon('folder', 12)} 更改位置</button>
                 </div>
               </section>
               <p class="about-foot">© 2026 知序 · 本地优先 · 更新源为 GitHub Releases</p>
@@ -411,6 +417,7 @@ function switchSettingsTab(tab) {
   if (selected === 'about') {
     const version = document.getElementById('about-current-version');
     if (version && desktopUpdateStatus) version.textContent = `v${desktopUpdateStatus.currentVersion}`;
+    void refreshDataLocation();
   }
 }
 
