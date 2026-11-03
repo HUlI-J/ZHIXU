@@ -31,19 +31,13 @@ try {
   await page.locator('#update-current-version').waitFor();
   await page.waitForFunction(version => document.getElementById('update-current-version').textContent.includes(version), displayVersion);
   assert.equal(await page.locator('#update-automatic').isChecked(), true);
+  assert.equal(await page.locator('#update-token').count(), 0);
+  assert.match(await page.locator('[data-settings-pane="updates"]').innerText(), /公开仓库，无需登录/);
   assert.equal(await page.locator('[data-action="update-install"]').isVisible(), false);
   await page.locator('#update-automatic').uncheck();
-  await page.locator('[data-action="update-save"]').click();
   await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('设置已保存'));
   assert.equal(JSON.parse(readFileSync(join(profile, 'updates.json'), 'utf8')).automatic, false);
-  const fakeCredential = 'isolated-fake-update-token';
-  const configured = await page.evaluate(token => window.xiaoyuDesktop.updates({
-    operation: 'configure', automatic: false, token
-  }), fakeCredential);
-  assert.equal(configured.hasToken, true);
-  assert.equal(readFileSync(join(profile, 'updates.json'), 'utf8').includes(fakeCredential), false);
-  assert.equal(JSON.stringify(configured).includes(fakeCredential), false);
-  await page.evaluate(() => window.xiaoyuDesktop.updates({ operation: 'configure', automatic: false, clearToken: true }));
+  assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(profile, 'updates.json'), 'utf8')), 'token'), false);
   await page.evaluate(() => closeModal());
   await page.evaluate(async () => {
     state.view = 'chat'; render();
@@ -61,15 +55,24 @@ try {
   }));
   assert.equal(await page.locator('#update-progress').isVisible(), true);
   assert.equal(await page.locator('[data-action="update-check"]').isDisabled(), true);
-  await page.evaluate(() => paintDesktopUpdate({
-    ...desktopUpdateStatus, stage: 'ready', version: '0.3.0', percent: 100, message: '新版本已下载，重启即可更新。'
-  }));
+  await page.evaluate(() => closeModal());
+  await page.evaluate(() => {
+    localModal('正在编辑', '<p>测试更新提示延后显示。</p>');
+    paintDesktopUpdate({
+      ...desktopUpdateStatus, stage: 'ready', version: '0.3.0', percent: 100, message: '新版本已下载，重启即可更新。'
+    });
+  });
+  await page.waitForTimeout(100);
+  assert.equal(await page.locator('#modal-root .profile-modal').count(), 0);
+  await page.evaluate(() => closeModal());
+  await page.locator('#modal-root .profile-modal').waitFor();
   assert.equal(await page.locator('[data-action="update-install"]').isVisible(), true);
   assert.equal(await page.locator('#desktop-update-notice').isVisible(), true);
+  assert.equal(await page.locator('#update-token').count(), 0);
   await page.evaluate(() => document.getAnimations().forEach(animation => {
     if (animation.effect?.getComputedTiming().iterations !== Infinity) animation.finish();
   }));
-  await page.waitForFunction(() => [...document.querySelectorAll('.update-modal,.modal-backdrop')]
+  await page.waitForFunction(() => [...document.querySelectorAll('.profile-modal,.modal-backdrop')]
     .every(element => getComputedStyle(element).opacity === '1'));
   await page.screenshot({ path: join(evidence, 'updates-desktop.png'), timeout: 15000 });
   await page.evaluate(() => paintDesktopUpdate({ ...desktopUpdateStatus, stage: 'idle', version: '' }));

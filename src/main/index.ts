@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, net, safeStorage } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, net, safeStorage, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
@@ -79,6 +79,17 @@ else {
     ipcMain.handle('workbench:revision', event => { checkSender(event); return { changed: desktopRevision !== shared.revision }; });
     ipcMain.handle('workbench:reload', event => { checkSender(event); window!.webContents.reload(); });
     ipcMain.handle('workbench:remote-access', (event, payload: unknown) => { checkSender(event); return remoteAccess!.handle(payload); });
+    ipcMain.handle('workbench:open-external', async (event, payload: unknown) => {
+      checkSender(event);
+      const url = z.url().parse(payload);
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' ||
+          !parsed.pathname.startsWith('/jun944049-huli/ZHIXU')) {
+        throw new Error('不允许打开此链接');
+      }
+      await shell.openExternal(parsed.toString());
+      return { opened: true };
+    });
     ipcMain.handle('workbench:export', async (event, input: unknown) => {
       checkSender(event);
       const payload = exportSchema.parse(input);
@@ -247,15 +258,10 @@ else {
     let closing = false;
     updates = new Updates(join(dataDir, 'updates.json'), {
       version: app.getVersion(), packaged: app.isPackaged,
-      encrypt(value) {
-        if (!safeStorage.isEncryptionAvailable()) throw new Error('系统安全存储不可用，更新凭据未保存');
-        return safeStorage.encryptString(value).toString('base64');
-      },
-      decrypt: value => safeStorage.decryptString(Buffer.from(value, 'base64')),
-      async engine(token) {
+      async engine() {
         const engine = new updater.NsisUpdater();
         await configureUpdateTransport(engine);
-        engine.setFeedURL(updateFeedConfig(token));
+        engine.setFeedURL(updateFeedConfig());
         engine.logger = null;
         engine.autoDownload = false;
         engine.autoInstallOnAppQuit = false;

@@ -72,6 +72,20 @@ function shiftToday(delta) {
   render();
 }
 
+async function openExternalLink(url) {
+  if (!url) return;
+  try {
+    if (window.xiaoyuDesktop?.openExternal) {
+      await window.xiaoyuDesktop.openExternal(url);
+      return;
+    }
+    const opened = window.open(url, '_blank', 'noopener');
+    if (!opened) showToast('浏览器阻止了新窗口，请手动打开链接');
+  } catch (error) {
+    showToast(error?.message || '无法打开链接');
+  }
+}
+
 function handleClick(e) {
   const el = e.target.closest('[data-action]');
   if (!el) return;
@@ -261,6 +275,9 @@ function handleClick(e) {
     case 'settings-tab':
       switchSettingsTab(el.dataset.tab);
       break;
+    case 'open-external':
+      void openExternalLink(el.dataset.url);
+      break;
     case 'chat-details':
       state.chatDetails = !state.chatDetails;
       workspaceState.open = false;
@@ -419,9 +436,12 @@ function handleInput(e) {
 function handleKeydown(e) {
   if (e.target.matches('[data-action="settings-tab"]') && ['ArrowLeft', 'ArrowRight'].includes(e.key)) {
     e.preventDefault();
-    const tab = e.target.dataset.tab === 'general' ? 'models' : 'general';
-    switchSettingsTab(tab);
-    document.getElementById('settings-tab-' + tab).focus();
+    const tabs = Array.from(document.querySelectorAll('[data-action="settings-tab"]'));
+    const index = tabs.indexOf(e.target);
+    if (index < 0) return;
+    const next = tabs[(index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+    switchSettingsTab(next.dataset.tab);
+    next.focus();
     return;
   }
   const mod = e.ctrlKey || e.metaKey;
@@ -478,6 +498,7 @@ function handleChange(e) {
     return;
   }
   if (e.target.id === 'profile-photo') { void importProfilePhoto(e.target); return; }
+  if (e.target.id === 'update-automatic') { void desktopUpdateAction('update-save'); return; }
   if (e.target.id === 'text-file') {
     state.documentImportResults = new Map();
     const results = document.getElementById('document-import-results');

@@ -30,15 +30,6 @@ function renderSidebar() {
         <span class="brand-name">知序</span>
       </div>
 
-      <button class="workspace-switch" data-action="profile-settings" title="工作台设置" aria-label="工作台设置">
-        <span class="workspace-avatar" style="background:${esc(DB.user.color)}">${profileAvatarContent()}</span>
-        <span class="workspace-meta">
-          <span class="workspace-name">${esc(DB.user.workspace || DB.user.name + '的工作台')}</span>
-          <span class="workspace-sub" id="workspace-storage-status">已保存</span>
-        </span>
-        ${icon('chevronDown', 13)}
-      </button>
-
       <nav class="nav">
         ${nav.map(item => `
           ${item.id === 'reports' ? '<div class="nav-divider"></div>' : ''}
@@ -59,6 +50,16 @@ function renderSidebar() {
         ${projects}
       </div>
 
+      <div class="sidebar-footer">
+        <button class="workspace-switch" data-action="profile-settings" title="工作台设置" aria-label="工作台设置">
+          <span class="workspace-avatar" style="background:${esc(DB.user.color)}">${profileAvatarContent()}</span>
+          <span class="workspace-meta">
+            <span class="workspace-name">${esc(DB.user.workspace || DB.user.name + '的工作台')}</span>
+            <span class="workspace-sub" id="workspace-storage-status">已保存</span>
+          </span>
+          ${icon('chevronDown', 13)}
+        </button>
+      </div>
     </aside>
   `;
 }

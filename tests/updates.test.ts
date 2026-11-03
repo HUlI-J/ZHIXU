@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Updates, UpdatePreparationError, updateError, updateFeedConfig } from '../src/main/updates';
@@ -28,26 +28,22 @@ function fixture(overrides: Record<string, unknown> = {}) {
   const path = join(mkdtempSync(join(tmpdir(), 'zhixu-updates-')), 'updates.json');
   const engine = new Engine();
   const states: string[] = [];
-  let prepared = 0, credentials = 0;
+  let prepared = 0;
   const deps = {
     version: '0.2.9', packaged: true,
-    encrypt: (value: string) => Buffer.from(value).toString('base64'),
-    decrypt: (value: string) => Buffer.from(value, 'base64').toString(),
-    credential: async () => { credentials++; return 'test-private-token'; },
-    engine: (_token: string) => engine,
+    engine: () => engine,
     prepare: async () => { prepared++; },
     notify: (status: { stage: string }) => states.push(status.stage),
     ...overrides
   };
   const updates = new Updates(path, deps);
-  return { updates, engine, path, deps, states, prepared: () => prepared, credentials: () => credentials };
+  return { updates, engine, path, deps, states, prepared: () => prepared };
 }
 test('new versions download in the background but require an explicit install', async () => {
   const f = fixture();
   const result = await f.updates.handle({ operation: 'check' });
   assert.equal(result.stage, 'ready');
-  assert.equal(result.version, '0.3.0'); assert.equal(result.access, 'none');
-  assert.equal(f.credentials(), 0);
+  assert.equal(result.version, '0.3.0');
   assert.equal(f.engine.downloads, 1); assert.equal(f.engine.installs, 0);
   assert.ok(f.states.includes('downloading'));
   await f.updates.handle({ operation: 'check' });
@@ -72,25 +68,23 @@ test('checksum failure never permits installation; retry downloads again', async
   f.engine.downloadError = '';
   assert.equal((await f.updates.handle({ operation: 'check' })).stage, 'ready');
 });
-test('missing local credential still checks the public release anonymously', async () => {
-  const f = fixture({ credential: async () => '' });
-  let used: string | null = null;
-  f.deps.engine = (token: string) => { used = token; return f.engine; };
+test('public updates always initialize the updater without credentials', async () => {
+  const f = fixture();
+  let engineCreated = false;
+  f.deps.engine = () => { engineCreated = true; return f.engine; };
   const result = await f.updates.handle({ operation: 'check' });
-  assert.equal(result.access, 'none');
-  assert.equal(used, '');
+  assert.equal(engineCreated, true);
   assert.equal(f.engine.checks, 1);
   assert.equal(f.engine.downloads, 1);
 });
 test('anonymous checks never send an empty token to the private provider', () => {
-  const anonymous = updateFeedConfig('');
+  const anonymous = updateFeedConfig();
+  assert.deepEqual(anonymous, { provider: 'github', owner: 'jun944049-huli', repo: 'ZHIXU' });
   assert.equal('token' in anonymous, false);
-  assert.equal(anonymous.repo, 'ZHIXU');
-  assert.equal(updateFeedConfig('abc').token, 'abc');
 });
 test('background scheduler discovers and downloads updates without a Git login', async context => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
-  const f = fixture({ credential: async () => { throw new Error('Git must not be required'); } });
+  const f = fixture();
   try {
     f.updates.start();
     context.mock.timers.tick(15000);
@@ -112,22 +106,22 @@ test('disabled background checks stay idle while manual checks remain available'
     assert.equal((await f.updates.handle({ operation: 'check' })).stage, 'ready');
   } finally { f.updates.dispose(); context.mock.timers.reset(); }
 });
-test('saved credentials remain encrypted and are never returned in status or errors', async () => {
-  const secret = 'github-test-sensitive-credential';
-  let used = '';
+test('re-enabling automatic checks triggers an immediate check', async () => {
   const f = fixture();
-  f.deps.engine = token => { used = token; return f.engine; };
-  await f.updates.handle({ operation: 'configure', automatic: false, token: secret });
-  assert.equal(readFileSync(f.path, 'utf8').includes(secret), false);
+  await f.updates.handle({ operation: 'configure', automatic: false });
+  await f.updates.handle({ operation: 'configure', automatic: true });
+  for (let step = 0; step < 20; step++) await Promise.resolve();
+  assert.equal(f.engine.checks, 1);
+  assert.equal(f.updates.status().stage, 'ready');
+});
+test('legacy update credentials are ignored and removed without decrypting them', async () => {
+  const f = fixture();
+  writeFileSync(f.path, JSON.stringify({ automatic: false, token: 'obsolete-encrypted-credential', checkedAt: '' }));
   const reopened = new Updates(f.path, f.deps);
-  assert.equal(reopened.status().hasToken, true);
   assert.equal(reopened.status().automatic, false);
-  await reopened.handle({ operation: 'check' });
-  assert.equal(used, secret); assert.equal(f.credentials(), 0);
-  assert.equal(JSON.stringify(reopened.status()).includes(secret), false);
-  assert.equal(updateError(`HTTP 401 Authorization: token ${secret}`).includes(secret), false);
-  await reopened.handle({ operation: 'configure', automatic: true, clearToken: true });
-  assert.equal(reopened.status().hasToken, false);
+  assert.equal(Object.hasOwn(reopened.status(), 'hasToken'), false);
+  assert.equal(JSON.parse(readFileSync(f.path, 'utf8')).token, undefined);
+  assert.equal((await reopened.handle({ operation: 'check' })).stage, 'ready');
 });
 test('the current version does not download or install anything', async () => {
   const f = fixture(); f.engine.available = false;
@@ -135,14 +129,11 @@ test('the current version does not download or install anything', async () => {
   assert.equal(result.stage, 'idle'); assert.match(result.message, /最新/);
   assert.ok(result.checkedAt); assert.equal(f.engine.downloads, 0);
 });
-test('credentials from an unavailable Windows identity cannot trigger an update or leak the secret', async () => {
-  const f = fixture();
-  await f.updates.handle({ operation: 'configure', automatic: true, token: 'secret-never-returned' });
-  f.deps.decrypt = () => { throw new Error('system decrypt failed secret-never-returned'); };
-  const status = await f.updates.handle({ operation: 'check' });
-  assert.equal(status.stage, 'error'); assert.match(status.message, /无法解密/);
-  assert.equal(JSON.stringify(status).includes('secret-never-returned'), false);
-  assert.equal(f.engine.checks, 0);
+test('public release access errors do not ask users for update credentials', () => {
+  const message = updateError('HTTP 403 rate limit');
+  assert.match(message, /公开更新源/);
+  assert.match(message, /GitHub Release/);
+  assert.doesNotMatch(message, /令牌|凭据|授权/);
 });
 test('concurrent checks and edits cannot replace an active download', async () => {
   let resolve!: () => void;
@@ -161,13 +152,14 @@ test('concurrent checks and edits cannot replace an active download', async () =
 test('development preview cannot download or run an installer', async () => {
   const f = fixture({ packaged: false });
   assert.equal((await f.updates.handle({ operation: 'check' })).stage, 'unavailable');
-  assert.equal(f.credentials(), 0); assert.equal(f.engine.checks, 0);
+  assert.equal(f.engine.checks, 0);
   await assert.rejects(f.updates.handle({ operation: 'install' }));
 });
 test('invalid commands and external update URLs are not accepted', async () => {
   const f = fixture();
   await assert.rejects(f.updates.handle({ operation: 'download-url', url: 'https://attacker.invalid/app.exe' }));
-  await assert.rejects(f.updates.handle({ operation: 'configure', automatic: true, token: 'a'.repeat(4097) }));
+  const legacyRequest: unknown = { operation: 'configure', automatic: true, token: 'obsolete' };
+  assert.equal((await f.updates.handle(legacyRequest)).automatic, true);
 });
 test('downloaded installer launch errors allow retry and never expose raw errors', async () => {
   const f = fixture();

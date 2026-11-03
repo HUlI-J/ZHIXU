@@ -181,6 +181,8 @@ function openProfileSettings(tab = 'general') {
         <div class="settings-tabs" role="tablist" aria-label="设置分类">
           <button type="button" role="tab" id="settings-tab-general" aria-controls="settings-general" data-action="settings-tab" data-tab="general">通用</button>
           <button type="button" role="tab" id="settings-tab-models" aria-controls="settings-models" data-action="settings-tab" data-tab="models">模型</button>
+          <button type="button" role="tab" id="settings-tab-updates" aria-controls="settings-updates" data-action="settings-tab" data-tab="updates">版本与更新</button>
+          <button type="button" role="tab" id="settings-tab-about" aria-controls="settings-about" data-action="settings-tab" data-tab="about">关于</button>
         </div>
         <div class="modal-body">
           <section class="settings-pane" id="settings-general" role="tabpanel" aria-labelledby="settings-tab-general" data-settings-pane="general">
@@ -297,11 +299,90 @@ function openProfileSettings(tab = 'general') {
             </div>
           </div>
           </section>
+          <section class="settings-pane" id="settings-updates" role="tabpanel" aria-labelledby="settings-tab-updates" data-settings-pane="updates">
+            <div class="settings-stack">
+              <section class="settings-card">
+                <div class="settings-card-body">
+                  <div class="settings-card-title">软件更新</div>
+                  <p class="settings-card-desc">更新源为 GitHub 公开仓库，无需登录；下载完成后由你决定何时重启安装。</p>
+                  <div class="update-version-row">
+                    <span id="update-current-version" class="update-current">当前版本 —</span>
+                    <span id="update-target-version" class="chip green" hidden></span>
+                  </div>
+                  <p id="update-status" class="remote-feedback settings-status" role="status" aria-live="polite">正在读取更新状态…</p>
+                  <progress id="update-progress" max="100" value="0" hidden></progress>
+                  <p id="update-checked-at" class="settings-meta"></p>
+                </div>
+                <div class="settings-card-side">
+                  <button class="btn btn-sm" data-action="update-check">${icon('refresh', 13)} 检查更新</button>
+                  <button class="btn btn-primary btn-sm" data-action="update-install" hidden>${icon('download', 13)} 重启并更新</button>
+                </div>
+              </section>
+              <section class="settings-card">
+                <div class="settings-card-body">
+                  <div class="settings-card-title">自动检查更新</div>
+                  <p class="settings-card-desc">启动约 15 秒后检查，此后每 6 小时检查一次。发现新版本后在后台下载，不会打断当前工作。</p>
+                </div>
+                <label class="switch" title="自动检查更新">
+                  <input type="checkbox" id="update-automatic" aria-label="自动检查并下载更新">
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+              </section>
+              <p class="settings-note">${icon('shield', 12)} 安装会沿用原安装位置与「知序」快捷方式，并在覆盖前备份 %APPDATA%\Xiaoyu 数据库。</p>
+            </div>
+          </section>
+          <section class="settings-pane" id="settings-about" role="tabpanel" aria-labelledby="settings-tab-about" data-settings-pane="about">
+            <div class="settings-stack">
+              <div class="about-hero">
+                <span class="about-mark">${brandImage()}</span>
+                <div class="about-hero-text">
+                  <h3>知序</h3>
+                  <p>把项目、任务、材料与对话收在一处的本地优先工作台。</p>
+                </div>
+                <span class="chip outline about-version" id="about-current-version">—</span>
+              </div>
+              <section class="settings-card">
+                <div class="settings-card-body">
+                  <div class="settings-card-title">版本与更新</div>
+                  <p class="settings-card-desc">检查公开版本并安装修复。下载完成前不会影响当前工作。</p>
+                </div>
+                <div class="settings-card-side">
+                  <button class="btn btn-sm" data-action="settings-tab" data-tab="updates">查看更新</button>
+                </div>
+              </section>
+              <section class="settings-card">
+                <div class="settings-card-body">
+                  <div class="settings-card-title">开源仓库</div>
+                  <p class="settings-card-desc">源代码、版本说明和安装包发布在 GitHub。</p>
+                  <code class="about-link-text">github.com/jun944049-huli/ZHIXU</code>
+                </div>
+                <div class="settings-card-side">
+                  <button class="btn btn-sm" data-action="open-external" data-url="https://github.com/jun944049-huli/ZHIXU">${icon('link', 12)} 打开仓库</button>
+                </div>
+              </section>
+              <section class="settings-card">
+                <div class="settings-card-body">
+                  <div class="settings-card-title">问题反馈</div>
+                  <p class="settings-card-desc">遇到问题或有改进建议，可以在 GitHub 提交反馈。</p>
+                </div>
+                <div class="settings-card-side">
+                  <button class="btn btn-sm" data-action="open-external" data-url="https://github.com/jun944049-huli/ZHIXU/issues/new">${icon('message', 12)} 提交反馈</button>
+                </div>
+              </section>
+              <section class="settings-card">
+                <div class="settings-card-body">
+                  <div class="settings-card-title">数据与隐私</div>
+                  <p class="settings-card-desc">工作数据保存在本机 %APPDATA%\Xiaoyu。只有主动使用 AI 或网页访问时，相关内容才会按你的配置发送。</p>
+                </div>
+              </section>
+              <p class="about-foot">© 2026 知序 · 本地优先 · 更新源为 GitHub Releases</p>
+            </div>
+          </section>
         </div>
 
         <div class="modal-foot">
-          <button class="btn" data-action="close-modal">取消</button>
-          <button class="btn btn-primary" data-action="save-profile">${icon('check', 13)} 保存</button>
+          <button class="btn" id="settings-cancel" data-action="close-modal">取消</button>
+          <button class="btn btn-primary" id="settings-save" data-action="save-profile">${icon('check', 13)} 保存</button>
         </div>
       </div>
     </div>
@@ -310,7 +391,7 @@ function openProfileSettings(tab = 'general') {
 }
 
 function switchSettingsTab(tab) {
-  const selected = tab === 'models' ? 'models' : 'general';
+  const selected = ['general', 'models', 'updates', 'about'].includes(tab) ? tab : 'general';
   document.querySelectorAll('[data-settings-pane]').forEach(pane => {
     pane.hidden = pane.dataset.settingsPane !== selected;
   });
@@ -318,6 +399,19 @@ function switchSettingsTab(tab) {
     button.setAttribute('aria-selected', String(button.dataset.tab === selected));
     button.tabIndex = button.dataset.tab === selected ? 0 : -1;
   });
+  const editingProfile = selected === 'general' || selected === 'models';
+  const save = document.getElementById('settings-save');
+  if (save) save.hidden = !editingProfile;
+  const cancel = document.getElementById('settings-cancel');
+  if (cancel) cancel.textContent = editingProfile ? '取消' : '关闭';
+  if (selected === 'updates') {
+    if (desktopUpdateStatus) paintDesktopUpdate(desktopUpdateStatus);
+    void refreshDesktopUpdatePane();
+  }
+  if (selected === 'about') {
+    const version = document.getElementById('about-current-version');
+    if (version && desktopUpdateStatus) version.textContent = `v${desktopUpdateStatus.currentVersion}`;
+  }
 }
 
 function setAvatarColor(color) {

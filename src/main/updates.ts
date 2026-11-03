@@ -5,10 +5,7 @@ import { z } from 'zod';
 import type { UpdateStatus } from '../shared/updates';
 
 export const UPDATE_REPOSITORY = { provider: 'github' as const, owner: 'jun944049-huli', repo: 'ZHIXU' };
-// electron-updater picks the private provider for any non-null token, including an empty string.
-export function updateFeedConfig(token: string): { provider: 'github'; owner: string; repo: string; token?: string } {
-  return token ? { ...UPDATE_REPOSITORY, token } : { ...UPDATE_REPOSITORY };
-}
+export function updateFeedConfig(): typeof UPDATE_REPOSITORY { return { ...UPDATE_REPOSITORY }; }
 export interface UpdateEngine extends EventEmitter {
   checkForUpdates(): Promise<unknown>;
   downloadUpdate(): Promise<unknown>;
@@ -18,9 +15,7 @@ export class UpdatePreparationError extends Error {}
 interface Dependencies {
   version: string;
   packaged: boolean;
-  encrypt(value: string): string;
-  decrypt(value: string): string;
-  engine(token: string): UpdateEngine | Promise<UpdateEngine>;
+  engine(): UpdateEngine | Promise<UpdateEngine>;
   prepare(): Promise<void>;
   notify(status: UpdateStatus): void;
 }
@@ -35,7 +30,7 @@ export function updateError(error: unknown): string {
     return '此版本缺少更新文件，请等待完整发布后重试，或从 GitHub 下载完整安装包覆盖安装。';
   }
   if (/401|403|404|Bad credentials|Resource not accessible|rate limit/i.test(text)) {
-    return '无法访问 GitHub 更新源。请检查网络或代理后重试；如遇访问频率限制，可填写仅授权 ZHIXU 仓库 Contents 只读权限的令牌。';
+    return '暂时无法访问公开更新源。请检查网络或代理，稍后重试；如果持续失败，请联系知序维护者检查 GitHub Release 是否已正式发布。';
   }
   if (/sha512|checksum|digest|signature|ERR_UPDATER_INVALID_SIGNATURE/i.test(text)) {
     return '更新文件校验失败，已停止安装。请检查网络后重新下载。';
@@ -49,12 +44,11 @@ const requestSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('status') }),
   z.object({ operation: z.literal('check') }),
   z.object({ operation: z.literal('install') }),
-  z.object({ operation: z.literal('configure'), automatic: z.boolean(),
-    token: z.string().trim().max(4096).optional(), clearToken: z.boolean().optional() })
+  z.object({ operation: z.literal('configure'), automatic: z.boolean() })
 ]);
 
 export class Updates {
-  private config: { automatic: boolean; token: string; checkedAt: string } = { automatic: true, token: '', checkedAt: '' };
+  private config: { automatic: boolean; checkedAt: string } = { automatic: true, checkedAt: '' };
   private state: UpdateStatus;
   private engine?: UpdateEngine;
   private busy = false;
@@ -63,13 +57,16 @@ export class Updates {
     let configError = false;
     try {
       if (existsSync(path)) {
-        const parsed = z.object({ automatic: z.boolean(), token: z.string(), checkedAt: z.string() }).parse(JSON.parse(readFileSync(path, 'utf8')));
-        this.config = parsed;
+        const raw = JSON.parse(readFileSync(path, 'utf8'));
+        this.config = z.object({ automatic: z.boolean(), checkedAt: z.string() }).parse(raw);
+        if (raw && typeof raw === 'object' && 'token' in raw) {
+          try { this.save(this.config); } catch { /* Legacy update credentials are never used. */ }
+        }
       }
     } catch { configError = true; }
     this.state = {
       currentVersion: deps.version, version: '', stage: deps.packaged ? 'idle' : 'unavailable',
-      automatic: this.config.automatic, hasToken: !!this.config.token, access: 'none', percent: 0,
+      automatic: this.config.automatic, percent: 0,
       checkedAt: this.config.checkedAt,
       message: !deps.packaged ? '开发预览不安装更新，请使用桌面安装版。' :
         configError ? '更新设置未能读取，请重新保存更新设置。' :
@@ -99,10 +96,14 @@ export class Updates {
     if (request.operation === 'status') return this.status();
     if (request.operation === 'configure') {
       if (this.busy || this.state.stage === 'installing') throw new Error('更新正在进行，请稍候再修改设置');
-      const token = request.clearToken ? '' : request.token ? this.deps.encrypt(request.token) : this.config.token;
-      this.save({ ...this.config, automatic: request.automatic, token });
-      this.set({ automatic: this.config.automatic, hasToken: !!token, access: 'none',
+      const wasAutomatic = this.config.automatic;
+      this.save({ ...this.config, automatic: request.automatic });
+      this.set({ automatic: this.config.automatic,
         message: this.state.stage === 'ready' ? '新版本已下载，重启即可更新。' : '更新设置已保存。' });
+      if (!wasAutomatic && request.automatic && this.deps.packaged &&
+          ['idle', 'error'].includes(this.state.stage)) {
+        queueMicrotask(() => { void this.check(); });
+      }
       return this.status();
     }
     if (request.operation === 'install') {
@@ -125,17 +126,8 @@ export class Updates {
     this.busy = true;
     this.set({ stage: 'checking', version: '', percent: 0, message: '正在检查新版本…' });
     try {
-      let saved = '';
-      try { saved = this.config.token ? this.deps.decrypt(this.config.token) : ''; }
-      catch {
-        this.set({ stage: 'error', message: '无法解密本机更新凭据，请在“GitHub 令牌”中重新保存或移除凭据。' });
-        return this.status();
-      }
-      // Public releases must not depend on the developer's Git login.
-      const token = saved;
-      this.set({ access: saved ? 'saved' : 'none' });
       this.engine?.removeAllListeners();
-      const engine = await this.deps.engine(token);
+      const engine = await this.deps.engine();
       this.engine = engine;
       engine.on('error', error => this.set({ stage: this.state.stage === 'installing' ? 'ready' : 'error', message: updateError(error) }));
       engine.on('update-available', info => {

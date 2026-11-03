@@ -56,6 +56,7 @@ export interface DesktopAPI {
   reload?(): Promise<void>;
   updates?(payload: unknown): Promise<UpdateStatus>;
   onUpdate?(listener: (status: UpdateStatus) => void): () => void;
+  openExternal?(url: string): Promise<{ opened: boolean }>;
   remoteAccess?(payload: unknown): Promise<{ running: boolean; busy: boolean; url: string; localURL: string; message: string; hasPassword: boolean }>;
   polish(payload: unknown): Promise<{ text: string; model: string; provider: string }>;
   captureTask(payload: unknown): Promise<{ title: string; model: string }>;
