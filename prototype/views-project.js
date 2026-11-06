@@ -129,7 +129,7 @@ function scoreClass(level) {
 }
 
 function renderProject() {
-  const p = projectById(state.projectId) || DB.projects[0];
+  const p = projectById(state.projectId);
   if (!p) return renderProjects();
   const detail = { ...detailForProject(p), milestones: projectMilestones(p.id) };
   const liveTasks = allWorkbenchTasks().filter(t => t.project === p.id);

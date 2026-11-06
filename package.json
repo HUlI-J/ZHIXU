@@ -2,7 +2,15 @@
   "name": "xiaoyu-workbench",
   "version": "0.2.16",
   "private": true,
-  "description": "知序 · 个人工作台",
+  "description": "本机优先的 AI 个人工作台：把对话、项目、任务、文档和报告连接成可执行工作流。",
+  "homepage": "https://github.com/HULI-J/ZHIXU#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HULI-J/ZHIXU.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HULI-J/ZHIXU/issues"
+  },
   "main": "./out/main/index.js",
   "type": "module",
   "scripts": {
@@ -86,7 +94,7 @@
     "afterPack": "scripts/copy-plugin-runtime.cjs",
     "publish": {
       "provider": "github",
-      "owner": "jun944049-huli",
+      "owner": "HULI-J",
       "repo": "ZHIXU"
     },
     "win": {

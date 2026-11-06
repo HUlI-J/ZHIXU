@@ -192,6 +192,14 @@ function handleClick(e) {
       if (state.view === 'chat') scrollChatToBottom();
       break;
     case 'project':
+      if (!projectById(el.dataset.id)) {
+        state.projectId = null;
+        state.view = 'projects';
+        closeModal();
+        render();
+        showToast('项目已不存在');
+        break;
+      }
       state.view = 'project';
       state.projectId = el.dataset.id;
       state.projectTab = 'overview';
@@ -203,6 +211,10 @@ function handleClick(e) {
       render();
       break;
     case 'chat-open-notes':
+      if (!projectById(el.dataset.id)) {
+        showToast('项目已不存在');
+        break;
+      }
       state.view = 'project';
       state.projectId = el.dataset.id;
       state.projectTab = 'notes';
@@ -210,6 +222,10 @@ function handleClick(e) {
       render();
       break;
     case 'chat-with-project':
+      if (!projectById(el.dataset.id)) {
+        showToast('项目已不存在');
+        break;
+      }
       state.view = 'chat';
       state.chatContext = el.dataset.id;
       closeModal();
@@ -599,7 +615,14 @@ function loadLocalOverrides() {
     const chatShortcuts = JSON.parse(storageGet('jw-chat-shortcuts') || 'null');
     if (Array.isArray(chatShortcuts)) state.chatShortcuts = chatShortcuts;
     const chatHistory = JSON.parse(storageGet('jw-chat-history') || 'null');
-    if (Array.isArray(chatHistory) && chatHistory.length) state.chatMessages = chatHistory;
+    if (Array.isArray(chatHistory) && chatHistory.length) {
+      state.chatMessages = chatHistory.map(message => {
+        if (message?.createdAt || !message?.time) return message;
+        const createdAt = typeof legacyChatCreatedAt === 'function' ? legacyChatCreatedAt(message.time) : null;
+        return createdAt ? { ...message, createdAt } : message;
+      });
+      if (typeof purgeDeletedProjectChat === 'function') purgeDeletedProjectChat();
+    }
     const chatModel = storageGet('jw-chat-model');
     if (chatModel) state.chatModel = chatModel;
     const activeProvider = aiProviderConfig();

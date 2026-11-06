@@ -130,10 +130,10 @@ function publishDocumentSummary(doc) {
   const tasks = (doc.analysis?.tasks || []).filter(task => task.selected !== false);
   const project = projectById(doc.projectId);
   const status = doc.analysisPending ? '分析已更新，等待保存' : project ? `已保存到「${project.name}」` : '项目归属待确认';
-  const message = { role: 'assistant', documentId: doc.id, time: '现在',
+  const message = chatMessage({ role: 'assistant', documentId: doc.id, time: '现在',
     model: doc.analysis?.model || doc.analysis?.mode || '系统',
     text: `${doc.title}\n${status} · ${tasks.length} 项任务\n${(doc.analysis?.summary || doc.parseError || '分析未完成，请查看附件详情。').slice(0, 500)}`,
-    documentTasks: tasks.map(task => ({ title: task.title })).slice(0, 8) };
+    documentTasks: tasks.map(task => ({ title: task.title })).slice(0, 8) });
   const previous = state.chatMessages.find(item => item.documentId === doc.id);
   if (previous) Object.assign(previous, message);
   else state.chatMessages.push(message);

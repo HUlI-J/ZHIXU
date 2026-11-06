@@ -219,6 +219,7 @@ async function deleteProject() {
   const id = state.deleteProjectId;
   const project = projectById(id);
   if (!project) return;
+  if (typeof removeProjectChatContent === 'function') removeProjectChatContent(id, project.name);
   DB.projectArchive = DB.projectArchive || [];
   DB.projectArchive.push({
     project, detail: DB.projectDetails?.[id], notes: DB.projectNotes?.[id] || [],
@@ -241,6 +242,8 @@ async function deleteProject() {
   if (DB.projectNotes) delete DB.projectNotes[id];
   saveProjectNotes();
   if (state.chatContext === id) state.chatContext = 'auto';
+  if (state.reportProject === id) state.reportProject = '';
+  if (typeof purgeDeletedProjectChat === 'function') purgeDeletedProjectChat();
   state.deleteProjectId = null;
   state.projectId = DB.projects[0]?.id || null;
   state.view = 'projects';

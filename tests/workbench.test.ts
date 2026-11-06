@@ -546,6 +546,16 @@ test('message model identity survives switching during a request and confirming 
   assert.equal(w.run("renderChat().includes('chat-safety')"), false);
 });
 
+test('chat messages persist and render an absolute date and time', async () => {
+  const w = workbench();
+  const html = w.run("renderChatMessage({role:'assistant',model:'验收模型',text:'正文',createdAt:'2026-11-06T12:05:06'})");
+  assert.match(html, /2026-11-06 12:05:06/);
+  w.fields['chat-input'] = { value: '记录一条普通消息', checkValidity: () => true };
+  await w.run('sendChat()');
+  assert.match(w.run("state.chatMessages.find(message=>message.role==='user').createdAt"), /T/);
+  assert.match(w.preferences['jw-chat-history'] || '', /createdAt/);
+});
+
 test('model proposals create tasks, risks and projects only on explicit, idempotent confirmation', async () => {
   const w = workbench();
   const tasks = w.run('allWorkbenchTasks().length'), projects = w.run('DB.projects.length');
@@ -670,6 +680,26 @@ test('new projects match by name and deleted project drafts cannot modify work',
   w.run("DB.projects = DB.projects.filter(p => p.id !== 'custom')");
   await w.run('applyChatAction()');
   assert.equal(w.run('allWorkbenchTasks().length'), before);
+});
+
+test('deleting a project removes its chat content and blocks stale or fabricated project actions', async () => {
+  const w = workbench();
+  w.run(`state.chatMemory={version:1,covered:1,fingerprint:'${'a'.repeat(64)}',summary:'星火项目旧摘要'};
+    state.chatMessages=[
+      chatMessage({role:'assistant',text:'星火项目旧内容',actionCard:{type:'progress',projectId:'p1',status:'pending',items:[]}}),
+      chatMessage({role:'assistant',text:'独立记录'})
+    ];
+    state.deleteProjectId='p1';`);
+  await w.run('deleteProject()');
+  assert.equal(w.run("state.chatMessages.some(message=>message.text==='星火项目旧内容')"), false);
+  assert.equal(w.run("state.chatMessages.some(message=>message.text==='独立记录')"), true);
+  assert.equal(w.run('state.chatContext'), 'auto');
+  assert.equal(w.run('state.chatMemory'), null);
+  assert.equal(w.run("modelChatCard({type:'task',title:'继续星火项目',projectId:'p1'},'继续星火项目')"), null);
+  assert.equal(w.run("modelChatCard({type:'project',name:'星火项目',goal:'继续推进'},'继续星火项目')"), null);
+  assert.ok(w.run("modelChatCard({type:'project',name:'新项目',goal:'验收'},'请创建一个新项目')"));
+  w.run("state.projectId='p1'; state.view='project';");
+  assert.doesNotMatch(w.run('renderProject()'), /星火项目/);
 });
 
 test('old prototype connections do not appear as verified without saved credentials', () => {
