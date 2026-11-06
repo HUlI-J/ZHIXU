@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $env:GCM_INTERACTIVE = 'never'
 $env:GIT_TERMINAL_PROMPT = '0'
-$credentialLines = "protocol=https`nhost=github.com`nusername=HULI-J`n`n" | git -c credential.interactive=never credential fill
+$credentialLines = "protocol=https`nhost=github.com`n`n" | git -c credential.interactive=never credential fill
 $credentials = @{}
 foreach ($entry in $credentialLines) {
   if ($entry -match '^([^=]+)=(.*)$') { $credentials[$matches[1]] = $matches[2] }
