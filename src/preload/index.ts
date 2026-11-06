@@ -37,4 +37,6 @@ const api: DesktopAPI = {
   }
 };
 
+contextBridge.exposeInMainWorld('zhixuDesktop', api);
+// Legacy integrations may still use the original bridge name.
 contextBridge.exposeInMainWorld('xiaoyuDesktop', api);

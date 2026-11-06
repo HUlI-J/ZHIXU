@@ -79,7 +79,7 @@ test('public updates always initialize the updater without credentials', async (
 });
 test('anonymous checks never send an empty token to the private provider', () => {
   const anonymous = updateFeedConfig();
-  assert.deepEqual(anonymous, { provider: 'github', owner: 'jun944049-huli', repo: 'ZHIXU' });
+  assert.deepEqual(anonymous, { provider: 'github', owner: 'HULI-J', repo: 'ZHIXU' });
   assert.equal('token' in anonymous, false);
 });
 test('background scheduler discovers and downloads updates without a Git login', async context => {

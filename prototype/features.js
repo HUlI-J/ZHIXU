@@ -535,8 +535,8 @@ function openDocument(id) {
 
 async function saveLocalFile(payload) {
   try {
-    if (window.xiaoyuDesktop?.exportFile) {
-      const result = await window.xiaoyuDesktop.exportFile(payload);
+    if (window.zhixuDesktop?.exportFile) {
+      const result = await window.zhixuDesktop.exportFile(payload);
       if (result.saved) showToast('文件已导出');
       return result.saved;
     }
@@ -574,8 +574,8 @@ async function exportAllData() {
 async function backupWorkbench() {
   try {
     await persistWorkbench();
-    if (!window.xiaoyuDesktop?.backup) { await exportAllData(); return; }
-    const result = await window.xiaoyuDesktop.backup();
+    if (!window.zhixuDesktop?.backup) { await exportAllData(); return; }
+    const result = await window.zhixuDesktop.backup();
     if (!result.saved) return;
     DB.meta.lastBackup = new Date().toISOString();
     await finishLocal(DB.documents.some(doc => doc.assetId)

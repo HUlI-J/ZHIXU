@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, safeStorage, shell } from 'electron';
 import { join, resolve } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { WorkbenchStore } from './database';
@@ -21,7 +21,7 @@ import updater from 'electron-updater';
 import { dirname } from 'node:path';
 import { Updates, UpdatePreparationError, updateFeedConfig } from './updates';
 import { configureUpdateTransport } from './update-http';
-import { assertMigrationTarget, dataLocationStatus, migrateData, readDataLocation, validateEmptyTarget, writeDataLocation } from './data-location';
+import { assertMigrationTarget, dataLocationStatus, migrateData, resolveBrandedDataLocation, validateEmptyTarget, writeDataLocation } from './data-location';
 
 let store: WorkbenchStore;
 let window: BrowserWindow | null = null;
@@ -38,15 +38,15 @@ async function pdfBytes(title: string, text: string) {
   } finally { printWindow.destroy(); }
 }
 
-const dataOverride = process.env.XIAOYU_DATA_DIR;
-const defaultDataPath = join(app.getPath('appData'), 'Xiaoyu');
-const savedLocation = dataOverride
-  ? { path: resolve(dataOverride), warning: '' }
-  : readDataLocation(defaultDataPath);
-const userDataPath = savedLocation.path;
-const dataLocationWarning = savedLocation.warning;
-mkdirSync(userDataPath, { recursive: true });
-app.setPath('userData', userDataPath);
+const dataOverride = process.env.ZHIXU_DATA_DIR || process.env.XIAOYU_DATA_DIR;
+const defaultDataPath = join(app.getPath('appData'), 'Zhixu');
+const legacyDefaultDataPath = join(app.getPath('appData'), 'Xiaoyu');
+// Keep the legacy lock identity so old and new versions cannot migrate or edit data concurrently.
+const lockDataPath = dataOverride ? resolve(dataOverride)
+  : existsSync(join(legacyDefaultDataPath, 'workbench.sqlite')) || existsSync(join(legacyDefaultDataPath, 'data-location.json'))
+    ? legacyDefaultDataPath : defaultDataPath;
+mkdirSync(lockDataPath, { recursive: true });
+app.setPath('userData', lockDataPath);
 app.setName('知序');
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
@@ -55,7 +55,12 @@ else {
     window?.show();
     window?.focus();
   });
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    const savedLocation = dataOverride ? { path: resolve(dataOverride), warning: '' }
+      : await resolveBrandedDataLocation(defaultDataPath, legacyDefaultDataPath);
+    const dataLocationWarning = savedLocation.warning;
+    mkdirSync(savedLocation.path, { recursive: true });
+    app.setPath('userData', savedLocation.path);
     const dataDir = app.getPath('userData');
     mkdirSync(dataDir, { recursive: true });
     store = new WorkbenchStore(join(dataDir, 'workbench.sqlite'), {
@@ -90,7 +95,7 @@ else {
       const url = z.url().parse(payload);
       const parsed = new URL(url);
       if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' ||
-          !parsed.pathname.startsWith('/jun944049-huli/ZHIXU')) {
+          !/^\/HULI-J\/ZHIXU(?:\/|$)/i.test(parsed.pathname)) {
         throw new Error('不允许打开此链接');
       }
       await shell.openExternal(parsed.toString());

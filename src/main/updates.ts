@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { z } from 'zod';
 import type { UpdateStatus } from '../shared/updates';
 
-export const UPDATE_REPOSITORY = { provider: 'github' as const, owner: 'jun944049-huli', repo: 'ZHIXU' };
+export const UPDATE_REPOSITORY = { provider: 'github' as const, owner: 'HULI-J', repo: 'ZHIXU' };
 export function updateFeedConfig(): typeof UPDATE_REPOSITORY { return { ...UPDATE_REPOSITORY }; }
 export interface UpdateEngine extends EventEmitter {
   checkForUpdates(): Promise<unknown>;

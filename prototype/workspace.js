@@ -38,7 +38,7 @@ function renderWorkspace() {
 
 function renderWorkspaceContent() {
   const ws = workspaceState;
-  if (window.xiaoyuDesktop?.isRemote) {
+  if (window.zhixuDesktop?.isRemote) {
     return `<div class="workspace-files-scroll"><div class="workspace-section-label">项目附件</div>
       <button class="btn btn-sm" data-action="workspace-upload">${icon('upload', 14)} 上传文件</button>
       ${(DB.documents || []).map(doc => `<button class="workspace-file-row" data-action="document-open" data-id="${esc(doc.id)}">${icon('file', 17)}<span>${esc(doc.title)}</span></button>`).join('') ||
@@ -98,8 +98,8 @@ function renderWorkspaceContent() {
 }
 
 async function workspaceRequest(payload) {
-  if (!window.xiaoyuDesktop?.workspace) throw new Error('浏览器预览暂不提供本地工作区，请在知序桌面版中使用');
-  return window.xiaoyuDesktop.workspace(payload);
+  if (!window.zhixuDesktop?.workspace) throw new Error('浏览器预览暂不提供本地工作区，请在知序桌面版中使用');
+  return window.zhixuDesktop.workspace(payload);
 }
 
 function refreshWorkspace() {
@@ -192,7 +192,7 @@ async function handleWorkspaceAction(action, el) {
 }
 
 function updateWorkspaceLayout() {
-  if (!window.xiaoyuDesktop?.workspace) return;
+  if (!window.zhixuDesktop?.workspace) return;
   const mount = document.getElementById('workspace-browser-mount');
   const visible = state.view === 'chat' && workspaceState.open && workspaceState.tab === 'browser' &&
     !!workspaceState.browser.url && !!mount && !document.querySelector('#modal-root > *');
@@ -221,9 +221,9 @@ function mountWorkspace() {
     workspaceModalObserver.observe(document.getElementById('modal-root'), { childList: true });
     window.addEventListener('resize', updateWorkspaceLayout);
   }
-  if (!workspaceSubscribed && window.xiaoyuDesktop?.onWorkspaceEvent) {
+  if (!workspaceSubscribed && window.zhixuDesktop?.onWorkspaceEvent) {
     workspaceSubscribed = true;
-    window.xiaoyuDesktop.onWorkspaceEvent(event => {
+    window.zhixuDesktop.onWorkspaceEvent(event => {
       const ws = workspaceState;
       if (event.type === 'browser') {
         Object.assign(ws.browser, event);

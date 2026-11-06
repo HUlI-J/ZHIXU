@@ -16,13 +16,13 @@ let application;
 let feed;
 try {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile }
   });
   let page = await application.firstWindow();
   const displayVersion = await application.evaluate(({ app }) => app.getVersion());
-  if (process.env.XIAOYU_TEST_EXE) assert.equal(displayVersion, version);
+  if (process.env.ZHIXU_TEST_EXE) assert.equal(displayVersion, version);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
@@ -148,7 +148,7 @@ try {
   assert.deepEqual(await engineDownload('retry-update-fixture'), { downloaded: true, checksumRejected: false, timedOut: false });
   console.log('Real updater verified valid bytes, corrupt checksums, stalled downloads and retry without installing');
 
-  if (process.env.XIAOYU_TEST_UPDATES_LIVE === '1') {
+  if (process.env.ZHIXU_TEST_UPDATES_LIVE === '1') {
     console.log('Verifying the public release anonymously and a real SHA-512 checked download...');
     const result = await application.evaluate(async ({ app }, { root, profile }) => {
       const require = process.getBuiltinModule('node:module').createRequire(root + '/package.json');
@@ -171,7 +171,7 @@ try {
       await configureUpdateTransport(updater);
       updater.autoDownload = false; updater.autoInstallOnAppQuit = false;
       updater.disableDifferentialDownload = true; updater.disableWebInstaller = true;
-      updater.setFeedURL({ provider: 'github', owner: 'jun944049-huli', repo: 'ZHIXU' });
+      updater.setFeedURL({ provider: 'github', owner: 'HULI-J', repo: 'ZHIXU' });
       const observed = [];
       updater.on('error', () => observed.push('error'));
       updater.on('update-available', () => observed.push('available'));
@@ -196,13 +196,13 @@ try {
       } catch (error) { throw new Error('Anonymous public release check/download verification failed: ' + String(error).slice(0, 2000)); }
       finally { clearTimeout(timer); }
     }, { root, profile });
-    assert.equal(result.version, process.env.XIAOYU_EXPECT_UPDATE_VERSION || version);
+    assert.equal(result.version, process.env.ZHIXU_EXPECT_UPDATE_VERSION || version);
     assert.equal(result.provider, 'GitHubProvider');
     assert.equal(result.sha512, result.expectedSha512);
     assert.ok(result.bytes > 100000000);
     assert.deepEqual(result.observed, ['available', 'downloaded']);
     if (displayVersion === result.version) {
-      const status = await page.evaluate(() => window.xiaoyuDesktop.updates({ operation: 'check' }));
+      const status = await page.evaluate(() => window.zhixuDesktop.updates({ operation: 'check' }));
       assert.equal(status.stage, 'idle');
       assert.match(status.message, /最新版本/);
     }
@@ -212,7 +212,7 @@ try {
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ passed: true, profile, ui: true }));
   writeFileSync(join(evidence, 'updates-result.json'), JSON.stringify({
-    passed: true, profile, live: process.env.XIAOYU_TEST_UPDATES_LIVE === '1'
+    passed: true, profile, live: process.env.ZHIXU_TEST_UPDATES_LIVE === '1'
   }, null, 2));
 } finally {
   feed?.closeAllConnections(); feed?.close();

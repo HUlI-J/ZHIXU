@@ -7,12 +7,12 @@ let workbenchSaveTimer = null;
 let workbenchSaveQueue = Promise.resolve();
 
 function storageGet(key) {
-  if (window.xiaoyuDesktop) return workbenchPreferences[key] || null;
+  if (window.zhixuDesktop) return workbenchPreferences[key] || null;
   return localStorage.getItem(key);
 }
 
 function storageSet(key, value) {
-  if (window.xiaoyuDesktop) {
+  if (window.zhixuDesktop) {
     workbenchPreferences[key] = String(value);
     scheduleWorkbenchSave();
   } else {
@@ -42,7 +42,7 @@ function persistWorkbench() {
   }
   workbenchLastQueued = serialized;
   workbenchSaveQueue = workbenchSaveQueue.catch(() => {}).then(async () => {
-    if (window.xiaoyuDesktop) await window.xiaoyuDesktop.save(snapshot);
+    if (window.zhixuDesktop) await window.zhixuDesktop.save(snapshot);
     else localStorage.setItem('jw-workbench', serialized);
     workbenchLastSaved = serialized;
     updateStorageStatus(true);
@@ -88,7 +88,7 @@ function advanceWorkbenchDate() {
 
 async function initializeWorkbenchStorage() {
   let snapshot;
-  if (window.xiaoyuDesktop) snapshot = await window.xiaoyuDesktop.load();
+  if (window.zhixuDesktop) snapshot = await window.zhixuDesktop.load();
   else {
     const raw = localStorage.getItem('jw-workbench');
     if (raw) {
@@ -106,16 +106,16 @@ async function initializeWorkbenchStorage() {
   advanceWorkbenchDate();
   workbenchReady = true;
   window.addEventListener('beforeunload', event => {
-    if (!window.xiaoyuDesktop) {
+    if (!window.zhixuDesktop) {
       void persistWorkbench().catch(() => {});
       return;
     }
-    if (window.xiaoyuDesktop.isRemote && JSON.stringify(workbenchSnapshot()) !== workbenchLastSaved) {
+    if (window.zhixuDesktop.isRemote && JSON.stringify(workbenchSnapshot()) !== workbenchLastSaved) {
       event.preventDefault(); event.returnValue = '';
     }
     // The desktop main process waits for persistWorkbench before closing.
   });
-  if (!window.xiaoyuDesktop) {
+  if (!window.zhixuDesktop) {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') void persistWorkbench().catch(() => {});
     });
@@ -123,9 +123,9 @@ async function initializeWorkbenchStorage() {
 }
 
 async function requestPolish(payload) {
-  if (window.xiaoyuDesktop) {
+  if (window.zhixuDesktop) {
     try {
-      const result = await window.xiaoyuDesktop.polish(payload);
+      const result = await window.zhixuDesktop.polish(payload);
       return { ok: true, status: 200, json: async () => result };
     } catch (error) {
       return { ok: false, status: 502, json: async () => ({ message: error.message }) };

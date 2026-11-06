@@ -44,7 +44,7 @@ test('invalid, oversized and empty files fail without a fake analysis', async ()
 });
 
 test('50 MB sources are accepted and failed extraction preserves an exact recoverable original', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'xiaoyu-large-files-'));
+  const directory = mkdtempSync(join(tmpdir(), 'zhixu-large-files-'));
   try {
     const files = new DocumentFiles(join(directory, 'attachments'));
     const bytes = Buffer.alloc(MAX_DOCUMENT_BYTES, 0x61);
@@ -86,7 +86,7 @@ test('UTF-16 and common Chinese CSV encoding are readable and wrong extensions a
 });
 
 test('original attachments persist exactly, reuse content identity and reject arbitrary paths', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'xiaoyu-files-'));
+  const directory = mkdtempSync(join(tmpdir(), 'zhixu-files-'));
   try {
     const files = new DocumentFiles(join(directory, 'attachments'));
     const fixture = { name: '附件.md', bytes: Buffer.from('完成附件原文核对') };

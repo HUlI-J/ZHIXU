@@ -1,5 +1,5 @@
-import { DatabaseSync } from 'node:sqlite';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { backup, DatabaseSync } from 'node:sqlite';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { cp, copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 
@@ -63,6 +63,49 @@ export function writeDataLocation(defaultPath: string, target: string): void {
   const temporary = pointer + '.tmp';
   writeFileSync(temporary, JSON.stringify({ path: resolve(target), updatedAt: new Date().toISOString() }, null, 2), { mode: 0o600 });
   renameSync(temporary, pointer);
+}
+
+// Activate the new directory only after a consistent SQLite backup and all assets are verified.
+export async function migrateLegacyDefaultData(legacyPath: string, defaultPath: string): Promise<void> {
+  const source = resolve(legacyPath);
+  const target = resolve(defaultPath);
+  if (source.toLowerCase() === target.toLowerCase()) throw new Error('旧版数据目录不能与新版目录相同');
+  if (!existsSync(join(source, 'workbench.sqlite'))) throw new Error('旧版数据目录不存在有效数据库');
+  if (existsSync(target) && readdirSync(target).length) throw new Error('新版数据目录不是空文件夹');
+  const temporary = `${target}.migration-${process.pid}-${Date.now()}`;
+  if (existsSync(temporary)) throw new Error('旧数据迁移临时目录已存在');
+  mkdirSync(temporary);
+  let database: DatabaseSync | undefined;
+  try {
+    database = new DatabaseSync(join(source, 'workbench.sqlite'), { readOnly: true });
+    await backup(database, join(temporary, 'workbench.sqlite'));
+    for (const name of ['attachments', 'plugins', 'remote', 'backups', 'updates.json']) {
+      if (!existsSync(join(source, name))) continue;
+      cpSync(join(source, name), join(temporary, name), { recursive: true, force: false, errorOnExist: true });
+    }
+    verifyDatabase(join(temporary, 'workbench.sqlite'));
+    database.close();
+    database = undefined;
+    if (existsSync(target)) rmdirSync(target);
+    renameSync(temporary, target);
+  } finally {
+    database?.close();
+    if (existsSync(temporary)) rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
+export async function resolveBrandedDataLocation(defaultPath: string, legacyPath: string): Promise<{ path: string; warning: string }> {
+  const current = readDataLocation(defaultPath);
+  if (existsSync(dataLocationPointer(defaultPath)) || existsSync(join(defaultPath, 'workbench.sqlite'))) return current;
+  const legacy = readDataLocation(legacyPath);
+  if (existsSync(dataLocationPointer(legacyPath))) return legacy;
+  if (!existsSync(join(legacyPath, 'workbench.sqlite'))) return current;
+  try {
+    await migrateLegacyDefaultData(legacyPath, defaultPath);
+    return { path: defaultPath, warning: '' };
+  } catch {
+    return { path: legacyPath, warning: '旧版数据目录迁移未完成，本次继续使用原目录；原数据未改动。请在“关于 → 数据与隐私”查看实际位置。' };
+  }
 }
 
 export function dataLocationStatus(defaultPath: string, current: string, warning = ''): DataLocation {

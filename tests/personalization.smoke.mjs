@@ -7,20 +7,20 @@ const evidence = resolve('.desktop-test');
 mkdirSync(evidence, { recursive: true });
 let application, browser, page;
 const errors = [];
-const desktop = !!process.env.XIAOYU_TEST_EXE;
+const desktop = !!process.env.ZHIXU_TEST_EXE;
 const close = () => page.locator('#modal-root [data-action="close-modal"]').first().click();
 const ready = () => page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
 const badge = view => page.locator(`.nav [data-view="${view}"] .nav-badge`);
 try {
   if (desktop) {
     const { ELECTRON_RUN_AS_NODE, ...env } = process.env;
-    application = await electron.launch({ executablePath: process.env.XIAOYU_TEST_EXE,
-      env: { ...env, XIAOYU_DATA_DIR: mkdtempSync(join(evidence, 'personalization-profile-')) } });
+    application = await electron.launch({ executablePath: process.env.ZHIXU_TEST_EXE,
+      env: { ...env, ZHIXU_DATA_DIR: mkdtempSync(join(evidence, 'personalization-profile-')) } });
     page = await application.firstWindow();
   } else {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     page = await browser.newPage();
-    await page.goto(process.env.XIAOYU_BROWSER_URL || 'http://127.0.0.1:5174/');
+    await page.goto(process.env.ZHIXU_BROWSER_URL || 'http://127.0.0.1:5174/');
   }
   page.on('pageerror', error => errors.push(error.message));
   await ready();

@@ -11,9 +11,9 @@ const root = resolve(import.meta.dirname, '..');
 const evidence = join(root, '.desktop-test');
 mkdirSync(evidence, { recursive: true });
 const profile = mkdtempSync(join(evidence, 'remote-profile-'));
-if (process.env.XIAOYU_REMOTE_CACHE) {
+if (process.env.ZHIXU_REMOTE_CACHE) {
   mkdirSync(join(profile, 'remote'));
-  for (const name of ['cloudflared.exe', 'runtime.json']) copyFileSync(join(process.env.XIAOYU_REMOTE_CACHE, name), join(profile, 'remote', name));
+  for (const name of ['cloudflared.exe', 'runtime.json']) copyFileSync(join(process.env.ZHIXU_REMOTE_CACHE, name), join(profile, 'remote', name));
 }
 const password = randomBytes(24).toString('base64url');
 const key = 'sk-remote-isolated-test';
@@ -35,9 +35,9 @@ const { ELECTRON_RUN_AS_NODE, ...environment } = process.env;
 let app, browser;
 try {
   app = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')], cwd: root,
-    env: { ...environment, XIAOYU_DATA_DIR: profile }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')], cwd: root,
+    env: { ...environment, ZHIXU_DATA_DIR: profile }
   });
   const host = await app.firstWindow();
   await host.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
@@ -48,11 +48,11 @@ try {
     saveSettings(); render(); await persistWorkbench();
   }, { key, baseURL });
   console.log('Starting verified HTTPS tunnel with isolated sample data...');
-  const remote = await host.evaluate(password => window.xiaoyuDesktop.remoteAccess({ operation: 'start', password }), password,
+  const remote = await host.evaluate(password => window.zhixuDesktop.remoteAccess({ operation: 'start', password }), password,
     { timeout: 300000 });
   assert.match(remote.url, /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/);
   console.log('HTTPS entry established');
-  const browserURL = process.env.XIAOYU_REMOTE_LOCAL === '1' ? remote.localURL : remote.url;
+  const browserURL = process.env.ZHIXU_REMOTE_LOCAL === '1' ? remote.localURL : remote.url;
   const edge = ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
     'C:/Program Files/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
   browser = await chromium.launch({ executablePath: edge, headless: true });
@@ -68,10 +68,10 @@ try {
     await page.locator('#login-submit').click();
     await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady, null, { timeout: 60000 });
     await page.evaluate(() => persistWorkbench());
-    assert.equal(await page.evaluate(() => window.xiaoyuDesktop.isRemote), true);
+    assert.equal(await page.evaluate(() => window.zhixuDesktop.isRemote), true);
     assert.equal(await page.evaluate(key => JSON.stringify(workbenchSnapshot()).includes(key), key), false);
     assert.equal(await page.locator('[data-action="remote-settings"]').count(), 0);
-    assert.equal(await page.evaluate(() => typeof window.xiaoyuDesktop.updates), 'undefined');
+    assert.equal(await page.evaluate(() => typeof window.zhixuDesktop.updates), 'undefined');
     await page.evaluate(() => openProfileSettings());
     assert.equal(await page.locator('[data-action="update-settings"]').count(), 0);
     await page.evaluate(() => closeModal());
@@ -102,7 +102,7 @@ try {
   await phone.waitForFunction(() => !state.documentImportBusy && DB.documents.some(doc => doc.title === '异地验收.docx'), null, { timeout: 90000 });
   const documentId = await phone.evaluate(() => DB.documents.find(doc => doc.title === '异地验收.docx').id);
   const downloadEvent = phone.waitForEvent('download');
-  await phone.evaluate(id => window.xiaoyuDesktop.exportOriginal({ name: '异地验收.docx', assetId: DB.documents.find(doc => doc.id === id).assetId }), documentId);
+  await phone.evaluate(id => window.zhixuDesktop.exportOriginal({ name: '异地验收.docx', assetId: DB.documents.find(doc => doc.id === id).assetId }), documentId);
   const download = await downloadEvent;
   await download.saveAs(join(evidence, 'remote-original.docx'));
   for (const view of ['today', 'chat', 'inbox', 'projects', 'reports', 'profile', 'data']) {
@@ -118,7 +118,7 @@ try {
     DB.documents?.some(doc => doc.id === id), documentId, { timeout: 30000 });
   await first.evaluate(() => persistWorkbench());
   await phone.evaluate(() => persistWorkbench());
-  assert.equal(await phone.evaluate(async () => (await window.xiaoyuDesktop.revision()).changed), false,
+  assert.equal(await phone.evaluate(async () => (await window.zhixuDesktop.revision()).changed), false,
     'Opening the imported document on another device must not create a new workbench revision');
   await first.evaluate(() => { state.view = 'chat'; render(); document.getElementById('chat-input').focus(); });
   await phone.evaluate(async () => { DB.projects[0].goal = '手机后续更新'; render(); await persistWorkbench(); });
@@ -127,11 +127,11 @@ try {
     try { await persistWorkbench(); return ''; } catch (error) { return error.message; }
   });
   assert.match(conflict, /其他设备已更新/);
-  assert.equal(await host.evaluate(async () => (await window.xiaoyuDesktop.load()).db.projects[0].goal), '手机后续更新');
+  assert.equal(await host.evaluate(async () => (await window.zhixuDesktop.load()).db.projects[0].goal), '手机后续更新');
   await first.screenshot({ path: join(evidence, 'remote-conflict.png') });
   await phone.locator('[data-action="web-logout"]').click();
   await phone.waitForURL('**/login', { timeout: 15000 });
-  await host.evaluate(() => window.xiaoyuDesktop.remoteAccess({ operation: 'stop' }));
+  await host.evaluate(() => window.zhixuDesktop.remoteAccess({ operation: 'stop' }));
   writeFileSync(join(evidence, 'remote-result.json'), JSON.stringify({
     passed: true, profile, providerCalls, sharedData: true, originalDownload: true, conflictProtected: true,
     externalHTTPS: browserURL === remote.url
@@ -142,7 +142,7 @@ try {
     console.log('Browser sync diagnostics:', await page.evaluate(async () => ({
       visibility: document.visibilityState, activeElement: document.activeElement?.tagName,
       sameSnapshot: typeof workbenchLastSaved !== 'undefined' && JSON.stringify(workbenchSnapshot()) === workbenchLastSaved,
-      changed: await window.xiaoyuDesktop?.revision(),
+      changed: await window.zhixuDesktop?.revision(),
       notice: document.getElementById('workbench-sync-notice')?.textContent,
       goal: typeof DB !== 'undefined' && DB.projects[0].goal,
       modal: !!document.querySelector('#modal-root .modal')
@@ -151,7 +151,7 @@ try {
   console.log('Host sync diagnostics:', await app?.firstWindow().then(page => page.evaluate(async () => ({
     visibility: document.visibilityState, activeElement: document.activeElement?.tagName,
     sameSnapshot: JSON.stringify(workbenchSnapshot()) === workbenchLastSaved,
-    changed: await window.xiaoyuDesktop.revision(),
+    changed: await window.zhixuDesktop.revision(),
     notice: document.getElementById('workbench-sync-notice')?.textContent,
     goal: DB.projects[0].goal,
     busy: { chat: state.chatSending, document: state.documentImportBusy, timer: !!DB.runningTimer },

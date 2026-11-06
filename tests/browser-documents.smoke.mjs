@@ -23,7 +23,7 @@ async function upload(names) {
   await page.waitForFunction(() => !state.documentImportBusy, null, { timeout: 240000 });
 }
 try {
-  await page.goto(process.env.XIAOYU_BROWSER_URL || 'http://127.0.0.1:5174/');
+  await page.goto(process.env.ZHIXU_BROWSER_URL || 'http://127.0.0.1:5174/');
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
   await page.locator('.nav [data-view="chat"]').click();
   await page.locator('[data-action="workspace-toggle"]').click();

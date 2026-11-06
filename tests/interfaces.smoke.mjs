@@ -17,11 +17,11 @@ knownActions.add('backdrop');
 ['plugin-open', 'plugin-add', 'plugin-refresh', 'plugin-manage', 'plugin-remove-confirm', 'plugin-remove-cancel'].forEach(action => knownActions.add(action));
 const observed = new Set();
 const errors = [];
-const captureScreenshots = process.env.XIAOYU_SKIP_SCREENSHOTS !== '1';
+const captureScreenshots = process.env.ZHIXU_SKIP_SCREENSHOTS !== '1';
 const application = await electron.launch({
-  executablePath: process.env.XIAOYU_TEST_EXE || resolve(root, 'node_modules/electron/dist/electron.exe'),
-  args: process.env.XIAOYU_TEST_EXE ? [] : [resolve(root, 'out/main/index.js')],
-  cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile, XIAOYU_EXPORT_DIR: exported }
+  executablePath: process.env.ZHIXU_TEST_EXE || resolve(root, 'node_modules/electron/dist/electron.exe'),
+  args: process.env.ZHIXU_TEST_EXE ? [] : [resolve(root, 'out/main/index.js')],
+  cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile, ZHIXU_EXPORT_DIR: exported }
 });
 let page = await application.firstWindow();
 page.on('pageerror', error => errors.push(error.message));
@@ -43,7 +43,7 @@ try {
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
   await application.evaluate(({ dialog }) => {
     dialog.showSaveDialog = async (_owner, options) => ({
-      canceled: false, filePath: process.env.XIAOYU_EXPORT_DIR + '/' + options.defaultPath
+      canceled: false, filePath: process.env.ZHIXU_EXPORT_DIR + '/' + options.defaultPath
     });
   });
   for (const view of ['today', 'chat', 'inbox', 'projects', 'reports', 'profile', 'data']) {

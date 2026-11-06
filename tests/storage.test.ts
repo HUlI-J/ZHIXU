@@ -12,7 +12,7 @@ test('loading an existing workbench does not write; real edits still persist and
   let reject = false;
   const context = createContext({
     DB: structuredClone(snapshot.db), setTimeout, clearTimeout,
-    window: { xiaoyuDesktop: { isRemote: true, load: async () => structuredClone(snapshot),
+    window: { zhixuDesktop: { isRemote: true, load: async () => structuredClone(snapshot),
       save: async (value: unknown) => {
         if (reject) throw new Error('其他设备已更新');
         saved.push(value);
@@ -43,11 +43,11 @@ test('a delayed browser revision response cannot misidentify its own successful 
     }
   });
   runInContext(readFileSync(resolve('prototype/remote-client.js'), 'utf8'), context);
-  await runInContext('window.xiaoyuDesktop.load()', context);
-  const pending = runInContext('window.xiaoyuDesktop.revision()', context);
-  await runInContext('window.xiaoyuDesktop.save({})', context);
+  await runInContext('window.zhixuDesktop.load()', context);
+  const pending = runInContext('window.zhixuDesktop.revision()', context);
+  await runInContext('window.zhixuDesktop.save({})', context);
   release(Response.json({ revision: 'one' }));
   assert.equal((await pending).changed, false);
   hold = false;
-  assert.equal((await runInContext('window.xiaoyuDesktop.revision()', context)).changed, true);
+  assert.equal((await runInContext('window.zhixuDesktop.revision()', context)).changed, true);
 });

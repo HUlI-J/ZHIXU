@@ -176,13 +176,13 @@ async function prepareChatHistory(user, provider, requestId) {
       batchSize += messages[end++].content.length;
     }
     if (end === covered) break;
-    if (!window.xiaoyuDesktop?.summarizeChat) throw new Error('当前版本无法整理长对话，请更新桌面版后重试');
+    if (!window.zhixuDesktop?.summarizeChat) throw new Error('当前版本无法整理长对话，请更新桌面版后重试');
     state.chatSummarizing = true;
     render();
     scrollChatToBottom();
     let result;
     try {
-      result = await window.xiaoyuDesktop.summarizeChat({
+      result = await window.zhixuDesktop.summarizeChat({
         provider, previousSummary: memory?.summary || '', messages: messages.slice(covered, end)
       });
     } catch (error) {
@@ -729,12 +729,12 @@ async function sendChat(retryId = '') {
     let replies;
     if (provider.id === 'local') replies = [chatMessage(buildChatReply(text))];
     else {
-      if (!window.xiaoyuDesktop?.chat) throw new Error('当前预览未接入模型对话，请使用更新后的桌面版');
+      if (!window.zhixuDesktop?.chat) throw new Error('当前预览未接入模型对话，请使用更新后的桌面版');
       const history = await prepareChatHistory(user, provider, requestId);
       if (!history || state.chatRequestId !== requestId) return;
       if (history.memory) { render(); scrollChatToBottom(); }
       const context = modelChatContext();
-      const result = await window.xiaoyuDesktop.chat({
+      const result = await window.zhixuDesktop.chat({
         provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model,
           protocol: provider.protocol || 'auto', name: provider.name },
         ...history, context

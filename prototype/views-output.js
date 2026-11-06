@@ -250,7 +250,7 @@ function renderReports() {
             <button class="btn btn-sm" data-action="report-save">${icon('check', 12)} 保存</button>
             <select class="select" id="report-export-format" aria-label="导出格式">
               ${['md', 'docx', 'xlsx', 'pdf'].map(format => `<option value="${format}"
-                ${format !== 'md' && !window.xiaoyuDesktop?.exportFile ? 'disabled' : ''}>${format === 'md' ? 'Markdown' : format.toUpperCase()}</option>`).join('')}
+                ${format !== 'md' && !window.zhixuDesktop?.exportFile ? 'disabled' : ''}>${format === 'md' ? 'Markdown' : format.toUpperCase()}</option>`).join('')}
             </select>
             <button class="icon-btn" data-action="report-export" title="导出报表" aria-label="导出报表">${icon('download', 15)}</button>
           </div>

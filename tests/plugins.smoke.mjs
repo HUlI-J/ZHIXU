@@ -33,9 +33,9 @@ let application;
 const errors = [];
 async function launch() {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile, ZHIXU_PLUGIN_FIXTURE: source }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile, ZHIXU_PLUGIN_FIXTURE: source }
   });
   const page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
@@ -57,14 +57,14 @@ try {
   await page.waitForFunction(() => document.getElementById('plugin-result')?.textContent.includes('不是可识别的 MCP'));
   assert.equal(await page.locator('#plugin-source').inputValue(), bad);
   assert.equal(await page.locator('[data-action="plugin-install"]').isEnabled(), true);
-  assert.equal((await page.evaluate(() => window.xiaoyuDesktop.plugins({ action: 'list' }))).plugins.length, 0);
+  assert.equal((await page.evaluate(() => window.zhixuDesktop.plugins({ action: 'list' }))).plugins.length, 0);
   assert.equal(readdirSync(join(profile, 'plugins')).filter(name => /^[0-9a-f]{8}-/.test(name)).length, 0);
   await page.locator('[data-action="plugin-pick"]').click();
   assert.equal(await page.locator('#plugin-source').inputValue(), source);
   await page.locator('[data-action="plugin-install"]').click();
   await page.waitForSelector('#plugin-args', { timeout: 45000 });
   assert.equal(existsSync(join(profile, 'script-executed')), false);
-  const id = (await page.evaluate(() => window.xiaoyuDesktop.plugins({ action: 'list' }))).plugins[0].id;
+  const id = (await page.evaluate(() => window.zhixuDesktop.plugins({ action: 'list' }))).plugins[0].id;
   await page.locator('[data-action="plugin-connect"]').click();
   await page.waitForFunction(() => document.getElementById('plugin-result')?.textContent.includes('TEST_TOKEN is required'));
   await page.locator('#plugin-args').fill('["folder with spaces"]');
@@ -82,14 +82,14 @@ try {
   assert.match(output, /folder with spaces/);
   assert.match(output, /已隐藏/);
   assert.doesNotMatch(output, /test-private-secret-123/);
-  const invalidEnvironment = await page.evaluate(id => window.xiaoyuDesktop.plugins({
+  const invalidEnvironment = await page.evaluate(id => window.zhixuDesktop.plugins({
     action: 'configure', id, env: { node_options: '--require=outside.cjs' }
   }).then(() => '', error => error.message), id);
   assert.match(invalidEnvironment, /不允许覆盖/);
   await page.screenshot({ path: join(evidence, 'plugins-connected-desktop.png'), fullPage: true });
   await page.locator('[data-action="plugin-disable"]').click();
   await page.waitForFunction(() => !document.getElementById('plugin-tool'));
-  assert.equal((await page.evaluate(() => window.xiaoyuDesktop.plugins({ action: 'list' }))).plugins[0].status, 'disabled');
+  assert.equal((await page.evaluate(() => window.zhixuDesktop.plugins({ action: 'list' }))).plugins[0].status, 'disabled');
   await page.locator('[data-action="close-modal"]').click();
   await page.locator('[data-action="plugin-add"]').first().click();
   await page.locator('#plugin-source').fill(source);
@@ -104,14 +104,14 @@ try {
   await page.locator('[data-action="plugin-manage"]').click();
   await page.locator('[data-action="plugin-connect"]').click();
   await page.waitForSelector('#plugin-tool');
-  assert.deepEqual((await page.evaluate(() => window.xiaoyuDesktop.plugins({ action: 'list' }))).plugins[0].args, ['folder with spaces']);
+  assert.deepEqual((await page.evaluate(() => window.zhixuDesktop.plugins({ action: 'list' }))).plugins[0].args, ['folder with spaces']);
   await page.locator('[data-action="plugin-remove-confirm"]').click();
   await page.locator('[data-action="plugin-remove-cancel"]').click();
   assert.equal(await page.locator('#plugin-tool').count(), 1);
   await page.locator('[data-action="plugin-remove-confirm"]').click();
   await page.locator('[data-action="plugin-remove"]').click();
   await page.waitForFunction(() => !document.querySelector('.plugin-modal'));
-  assert.equal((await page.evaluate(() => window.xiaoyuDesktop.plugins({ action: 'list' }))).plugins.length, 0);
+  assert.equal((await page.evaluate(() => window.zhixuDesktop.plugins({ action: 'list' }))).plugins.length, 0);
   assert.equal(existsSync(join(profile, 'plugins', id)), false);
   assert.equal(existsSync(join(source, 'server.mjs')), true);
   await application.close();

@@ -77,14 +77,14 @@ function openIntegration(id) {
   const config = DB.settings.integrations[id] || {};
   const status = integrationStatus(id);
   const busy = !!state.integrationBusy?.[id];
-  const canSave = !!window.xiaoyuDesktop?.integration && !busy;
+  const canSave = !!window.zhixuDesktop?.integration && !busy;
   document.getElementById('modal-root').innerHTML = `
     <div class="modal-backdrop" data-action="backdrop">
       <div class="modal integration-modal" role="dialog" aria-modal="true" aria-label="${esc(connector.name)}配置">
         <div class="modal-head"><h2>${esc(connector.name)}配置</h2><button class="icon-btn" data-action="close-modal" aria-label="关闭">${icon('x')}</button></div>
         <div class="modal-body">
           <p class="small muted">${esc(definition.help)}</p>
-          ${!window.xiaoyuDesktop?.integration ? '<p class="integration-notice">请使用桌面测试版保存和验证连接器；浏览器预览不保存连接密码。</p>' : ''}
+          ${!window.zhixuDesktop?.integration ? '<p class="integration-notice">请使用桌面测试版保存和验证连接器；浏览器预览不保存连接密码。</p>' : ''}
           <div class="integration-fields">
             ${definition.fields.map(([key, label, type = 'text', optional, defaultValue]) => `
               <div class="field"><label for="integration-${key}">${esc(label)}${optional ? '' : ' *'}</label>
@@ -129,7 +129,7 @@ function readIntegrationForm() {
 
 async function saveIntegration(keepOpen = false) {
   const id = state.integrationId;
-  if (!window.xiaoyuDesktop?.integration || state.integrationBusy?.[id]) return null;
+  if (!window.zhixuDesktop?.integration || state.integrationBusy?.[id]) return null;
   const config = readIntegrationForm();
   if (!config) return null;
   const changed = JSON.stringify(config) !== JSON.stringify(DB.settings.integrations[id]);
@@ -174,7 +174,7 @@ async function executeIntegration(operation) {
   state.integrationBusy[id] = true;
   openIntegration(id);
   try {
-    const result = await window.xiaoyuDesktop.integration({ id, config, operation });
+    const result = await window.zhixuDesktop.integration({ id, config, operation });
     // Discard responses if the configuration was disconnected or changed while the request ran.
     if (JSON.stringify(DB.settings.integrations[id]) !== JSON.stringify(config)) return;
     const count = operation === 'sync' ? importIntegrationRecords(id, result.records) : 0;

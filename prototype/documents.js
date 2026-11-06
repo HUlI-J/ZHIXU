@@ -11,7 +11,7 @@ async function documentWebRequest(path, options) {
 }
 
 function documentBridge() {
-  if (window.xiaoyuDesktop?.importDocument) return window.xiaoyuDesktop;
+  if (window.zhixuDesktop?.importDocument) return window.zhixuDesktop;
   return {
     importDocument: async ({ name, bytes }) => (await documentWebRequest('import?name=' + encodeURIComponent(name), {
       method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes
@@ -77,7 +77,7 @@ async function analyzeImportedDocument(doc) {
     apiKey: provider.apiKey, baseUrl: provider.baseUrl, model: provider.model, provider: provider.name,
     protocol: provider.protocol || 'auto'
   };
-  if (window.xiaoyuDesktop?.analyzeDocument) return window.xiaoyuDesktop.analyzeDocument(input);
+  if (window.zhixuDesktop?.analyzeDocument) return window.zhixuDesktop.analyzeDocument(input);
   if (typeof fetch === 'function') return documentBridge().analyzeDocument(input);
   const matches = DB.projects.filter(p => (doc.title + '\n' + doc.content).includes(p.name));
   const lines = doc.content.split('\n').map(line => line.trim()).filter(Boolean);
@@ -123,7 +123,7 @@ async function importDocuments() {
         if (!file.size) throw new Error('文件为空，请选择包含正文的文件');
         if (file.size > 50 * 1024 * 1024) throw new Error('文件超过 50 MB，请压缩或拆分后上传');
         let parsed;
-        if (window.xiaoyuDesktop?.importDocument || typeof fetch === 'function') {
+        if (window.zhixuDesktop?.importDocument || typeof fetch === 'function') {
           parsed = await documentBridge().importDocument({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
         } else {
           if (!/\.(txt|md|csv)$/i.test(file.name)) throw new Error('此格式请使用桌面版上传');
@@ -138,7 +138,7 @@ async function importDocuments() {
           results.set(file, { id: existing.id, status: 'saved', reason: '已存在于附件记录，未重复导入' });
           continue;
         }
-        const totalLimit = window.xiaoyuDesktop ? 10000000 : 1500000;
+        const totalLimit = window.zhixuDesktop ? 10000000 : 1500000;
         if (DB.documents.reduce((sum, doc) => sum + (doc.id === existing?.id ? 0 : doc.content.length), 0) + parsed.text.length > totalLimit) {
           throw new Error('本机文档正文总量已达上限，请先导出整理；原文件已保留在附件目录');
         }

@@ -11,7 +11,7 @@ async function copyRemotePassword(value) {
   catch { return false; }
 }
 function reloadWorkbench() {
-  if (window.xiaoyuDesktop?.reload) void window.xiaoyuDesktop.reload();
+  if (window.zhixuDesktop?.reload) void window.zhixuDesktop.reload();
   else location.reload();
 }
 function paintRemoteStatus(result) {
@@ -29,8 +29,8 @@ function paintRemoteStatus(result) {
     .forEach(button => { button.disabled = result.busy; });
 }
 async function refreshRemoteStatus() {
-  if (!window.xiaoyuDesktop?.remoteAccess) return undefined;
-  const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'status' });
+  if (!window.zhixuDesktop?.remoteAccess) return undefined;
+  const result = await window.zhixuDesktop.remoteAccess({ operation: 'status' });
   if (document.getElementById('remote-access-status')) paintRemoteStatus(result);
   return result;
 }
@@ -39,7 +39,7 @@ function setRemoteBusy(busy) {
     .forEach(button => { button.disabled = busy; });
 }
 function openRemoteAccess() {
-  if (!window.xiaoyuDesktop?.remoteAccess) return;
+  if (!window.zhixuDesktop?.remoteAccess) return;
   localModal('网页访问', `<div class="field">
       <label for="remote-password">访问密码</label><input class="input" type="text" id="remote-password"
       autocomplete="new-password" minlength="12" maxlength="200" placeholder="开启时自动生成，也可以手动输入">
@@ -71,8 +71,8 @@ async function remoteAction(action) {
       setRemoteBusy(true);
       if (status) status.textContent = '正在应用新密码并重新开启网页访问…';
       try {
-        await window.xiaoyuDesktop.remoteAccess({ operation: 'password', password: value });
-        const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'start' });
+        await window.zhixuDesktop.remoteAccess({ operation: 'password', password: value });
+        const result = await window.zhixuDesktop.remoteAccess({ operation: 'start' });
         if (password?.isConnected) { password.value = value; password.type = 'text'; }
         if (note?.isConnected) { note.hidden = false; note.textContent = '新密码已应用；旧密码和原登录会话已失效。'; }
         paintRemoteStatus(result);
@@ -106,7 +106,7 @@ async function remoteAction(action) {
     if (status) status.textContent = generated ? '正在自动生成密码并开启网页访问…' : '正在开启网页访问…';
     try {
       await persistWorkbench();
-      const result = await window.xiaoyuDesktop.remoteAccess({ operation: 'start', password: value || undefined });
+      const result = await window.zhixuDesktop.remoteAccess({ operation: 'start', password: value || undefined });
       if (password?.isConnected) { password.value = value; password.type = 'text'; }
       if (note?.isConnected && generated) { note.hidden = false; note.textContent = '访问密码已自动生成，请立即复制保存。'; }
       paintRemoteStatus(result);
@@ -122,7 +122,7 @@ async function remoteAction(action) {
   setRemoteBusy(true);
   if (status) status.textContent = '正在处理…';
   try {
-    const result = await window.xiaoyuDesktop.remoteAccess({ operation: action.slice('remote-'.length) });
+    const result = await window.zhixuDesktop.remoteAccess({ operation: action.slice('remote-'.length) });
     if (status?.isConnected) status.textContent = result.message;
     paintRemoteStatus(result);
   } catch (error) {
@@ -135,13 +135,13 @@ async function remoteAction(action) {
 async function refreshDataLocation() {
   const path = document.getElementById('data-location-path');
   if (!path) return;
-  if (!window.xiaoyuDesktop?.dataLocation) {
+  if (!window.zhixuDesktop?.dataLocation) {
     path.textContent = '网页预览不显示本机数据位置，请在安装版中查看。';
     document.querySelectorAll('[data-action^="data-location-"]').forEach(button => { button.disabled = true; });
     return;
   }
   try {
-    const status = await window.xiaoyuDesktop.dataLocation({ operation: 'status' });
+    const status = await window.zhixuDesktop.dataLocation({ operation: 'status' });
     path.textContent = status.path;
     const note = document.getElementById('data-location-note');
     if (note) {
@@ -155,7 +155,7 @@ async function refreshDataLocation() {
 }
 
 async function dataLocationAction(action) {
-  if (!window.xiaoyuDesktop?.dataLocation) { showToast('请在安装版中更改数据位置'); return; }
+  if (!window.zhixuDesktop?.dataLocation) { showToast('请在安装版中更改数据位置'); return; }
   const note = document.getElementById('data-location-note');
   if (action === 'data-location-change') {
     if (!confirm('更改数据位置会先保存当前工作，再把数据库、附件和插件配置复制到新文件夹，然后重启知序。原位置会保留一份完整副本。继续吗？')) return;
@@ -164,7 +164,7 @@ async function dataLocationAction(action) {
     overlay.innerHTML = '<div><strong>正在迁移工作数据…</strong><span>请勿关闭知序，完成后会自动重启。</span></div>';
     document.body.append(overlay);
     try {
-      const result = await window.xiaoyuDesktop.dataLocation({ operation: 'choose' });
+      const result = await window.zhixuDesktop.dataLocation({ operation: 'choose' });
       if (result.canceled) { overlay.remove(); return; }
       if (note) { note.hidden = false; note.textContent = result.message || '正在重启知序…'; }
     } catch (error) {
@@ -174,7 +174,7 @@ async function dataLocationAction(action) {
     }
     return;
   }
-  try { await window.xiaoyuDesktop.dataLocation({ operation: 'open' }); }
+  try { await window.zhixuDesktop.dataLocation({ operation: 'open' }); }
   catch (error) { showToast(error.message || '无法打开数据文件夹'); }
 }
 
@@ -216,14 +216,14 @@ function workbenchSyncNotice(message) {
 }
 
 function initializeWorkbenchSync() {
-  if (!window.xiaoyuDesktop?.revision) return;
+  if (!window.zhixuDesktop?.revision) return;
   let checking = false;
   setInterval(async () => {
     if (checking || !workbenchReady || document.visibilityState === 'hidden' ||
         workbenchLastQueued !== workbenchLastSaved) return;
     checking = true;
     try {
-      const result = await window.xiaoyuDesktop.revision();
+      const result = await window.zhixuDesktop.revision();
       if (workbenchLastQueued !== workbenchLastSaved) return;
       if (!result.changed) { document.getElementById('workbench-sync-notice')?.remove(); return; }
       const editing = document.activeElement?.matches('input,textarea,[contenteditable="true"]') ||

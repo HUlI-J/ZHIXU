@@ -67,7 +67,7 @@ function paintDesktopUpdate(status) {
 async function refreshDesktopUpdatePane() {
   const output = document.getElementById('update-status');
   if (!output) return;
-  if (!window.xiaoyuDesktop?.updates || window.xiaoyuDesktop.isRemote) {
+  if (!window.zhixuDesktop?.updates || window.zhixuDesktop.isRemote) {
     output.textContent = '网页预览不提供更新检查，请在安装版中使用。';
     document.querySelectorAll('[data-action="update-check"],[data-action="update-install"]')
       .forEach(button => { button.disabled = true; });
@@ -75,7 +75,7 @@ async function refreshDesktopUpdatePane() {
   }
   if (desktopUpdateStatus && ['downloading', 'ready', 'installing'].includes(desktopUpdateStatus.stage)) return;
   try {
-    const status = await window.xiaoyuDesktop.updates({ operation: 'status' });
+    const status = await window.zhixuDesktop.updates({ operation: 'status' });
     if (document.getElementById('update-status')) paintDesktopUpdate(status);
   } catch (error) {
     if (document.getElementById('update-status')) output.textContent = error.message;
@@ -93,7 +93,7 @@ async function desktopUpdateAction(action) {
     const request = operation === 'save' ? {
       operation: 'configure', automatic: document.getElementById('update-automatic').checked
     } : { operation };
-    const status = await window.xiaoyuDesktop.updates(request);
+    const status = await window.zhixuDesktop.updates(request);
     paintDesktopUpdate(status);
   } catch (error) { if (output?.isConnected) output.textContent = error.message; }
 }
@@ -110,7 +110,7 @@ async function prepareWorkbenchUpdate() {
   return true;
 }
 function initializeDesktopUpdates() {
-  if (!window.xiaoyuDesktop?.updates || window.xiaoyuDesktop.isRemote) return;
-  window.xiaoyuDesktop.onUpdate?.(paintDesktopUpdate);
-  void window.xiaoyuDesktop.updates({ operation: 'status' }).then(paintDesktopUpdate).catch(() => {});
+  if (!window.zhixuDesktop?.updates || window.zhixuDesktop.isRemote) return;
+  window.zhixuDesktop.onUpdate?.(paintDesktopUpdate);
+  void window.zhixuDesktop.updates({ operation: 'status' }).then(paintDesktopUpdate).catch(() => {});
 }

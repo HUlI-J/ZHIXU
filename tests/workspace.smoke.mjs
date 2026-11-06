@@ -28,9 +28,9 @@ let application;
 const errors = [];
 try {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile, ZHIXU_TEST_FOLDER: folder }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile, ZHIXU_TEST_FOLDER: folder }
   });
   const page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
@@ -56,10 +56,10 @@ try {
   const rejected = await page.evaluate(async () => {
     const results = [];
     for (const path of ['../package.json', 'C:\\Windows\\win.ini']) {
-      try { await xiaoyuDesktop.workspace({ operation: 'file-read', rootId: workspaceState.rootId, path }); results.push(false); }
+      try { await zhixuDesktop.workspace({ operation: 'file-read', rootId: workspaceState.rootId, path }); results.push(false); }
       catch { results.push(true); }
     }
-    try { await xiaoyuDesktop.workspace({ operation: 'browser-navigate', url: 'file:///C:/Windows/win.ini' }); results.push(false); }
+    try { await zhixuDesktop.workspace({ operation: 'browser-navigate', url: 'file:///C:/Windows/win.ini' }); results.push(false); }
     catch { results.push(true); }
     return results;
   });
@@ -106,7 +106,7 @@ try {
   assert.equal(browserInfo.preferences.sandbox, true);
   const guestAPI = await application.evaluate(async ({ BrowserWindow }) => {
     const main = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('index.html'));
-    return main.contentView.children[0].webContents.executeJavaScript('typeof window.xiaoyuDesktop');
+    return main.contentView.children[0].webContents.executeJavaScript('typeof window.zhixuDesktop');
   });
   assert.equal(guestAPI, 'undefined');
   await page.locator('[data-action="chat-attachment"]').click();
@@ -127,7 +127,7 @@ try {
   await page.waitForTimeout(100);
   assert.equal(await application.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].contentView.children[0].getVisible()), false);
-  await page.screenshot({ path: join(evidence, 'workspace-files.png') });
+  if (process.env.ZHIXU_SKIP_SCREENSHOTS !== '1') await page.screenshot({ path: join(evidence, 'workspace-files.png') });
   await page.locator('[data-action="workspace-toggle"]').first().click();
   assert.equal(await page.locator('#chat-input').inputValue(), '保留这条尚未发送的聊天内容');
   await page.locator('.nav [data-view="projects"]').click();

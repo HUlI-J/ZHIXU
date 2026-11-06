@@ -154,7 +154,7 @@ test('explicit status statements sync once; questions stay pending and save fail
   w.fields['chat-input'] = { value: '青禾小学维修部分已经全部完成了', checkValidity: () => true };
   w.run(`DB.settings.aiProvider='custom'; DB.settings.customProvider={
     name:'验收模型',baseUrl:'http://127.0.0.1',apiKey:'isolated',model:'semantic-model'};
-    window.xiaoyuDesktop={chat:async()=>({reply:'维修完成',model:'semantic-model',warnings:[],actions:[window.repairUpdate]})};`);
+    window.zhixuDesktop={chat:async()=>({reply:'维修完成',model:'semantic-model',warnings:[],actions:[window.repairUpdate]})};`);
   await w.run('sendChat()');
   assert.equal(w.run("taskLocation('repair-a').task.done"), true);
   assert.equal(w.run("state.chatMessages.at(-1).actionCard.status"), 'done');
@@ -393,7 +393,7 @@ test('model chat is a real bridge call, retains failed questions and retries wit
   const before = w.run('DB.inbox.length');
   w.run(`DB.settings.aiProvider='custom'; DB.settings.customProvider={
     name:'验收模型',baseUrl:'http://127.0.0.1',apiKey:'secret',model:'semantic-model',protocol:'responses'};
-    window.xiaoyuDesktop={chat:async payload=>{
+    window.zhixuDesktop={chat:async payload=>{
       window.lastPayload=payload;
       return {reply:'关键路径决定最早交付时间',actions:[],warnings:[],model:'semantic-model'};
     }};`);
@@ -403,14 +403,14 @@ test('model chat is a real bridge call, retains failed questions and retries wit
   assert.equal(w.run('window.lastPayload.messages.at(-1).content'), '解释关键路径');
   assert.equal(w.run('DB.inbox.length'), before);
   assert.equal(w.run('chatModelLabel()'), '验收模型 · semantic-model');
-  w.run("window.xiaoyuDesktop.chat=async()=>{throw new Error('HTTP 401: 鉴权失败')}");
+  w.run("window.zhixuDesktop.chat=async()=>{throw new Error('HTTP 401: 鉴权失败')}");
   w.fields['chat-input'].value = '再解释一下';
   await w.run('sendChat()');
   assert.match(w.run('state.chatMessages.at(-1).text'), /401/);
   assert.equal(w.run('state.chatMessages.at(-1).actionCard'), undefined);
   assert.equal(w.run('state.chatSending'), false);
   const id = w.run('state.chatMessages.at(-1).retryOf');
-  w.run("window.xiaoyuDesktop.chat=async()=>({reply:'恢复后的模型回答',actions:[],warnings:[],model:'semantic-model'})");
+  w.run("window.zhixuDesktop.chat=async()=>({reply:'恢复后的模型回答',actions:[],warnings:[],model:'semantic-model'})");
   await w.run(`sendChat(${JSON.stringify(id)})`);
   assert.equal(w.run("state.chatMessages.filter(m=>m.role==='user' && m.text==='再解释一下').length"), 1);
   assert.equal(w.run('state.chatMessages.at(-1).text'), '恢复后的模型回答');
@@ -425,7 +425,7 @@ function seedLongChat(w: ReturnType<typeof workbench>) {
     state.chatMessages=Array.from({length:72},(_,i)=>({id:'history-'+i,
       role:i%2?'assistant':'user',text:(i===0?'青禾小学的维修完成，部署尚未完成。':'历史事实'+i+'。')+'背景。'.repeat(120)}));
     window.summaryCalls=[]; window.chatCalls=[];
-    window.xiaoyuDesktop={
+    window.zhixuDesktop={
       summarizeChat:async payload=>{window.summaryCalls.push(payload); return {
         summary:'青禾小学：维修已完成；部署未完成，继续跟进。验收方案仅为提议，尚未确认。',
         model:'memory-model'};},
@@ -468,7 +468,7 @@ test('long conversations use rolling cached memory and retain full history acros
 test('summary failures preserve original history and retry safely without executing work updates', async () => {
   const w = workbench(); seedLongChat(w);
   const before = w.run('JSON.stringify(DB)');
-  w.run("window.xiaoyuDesktop.summarizeChat=async()=>{throw new Error('HTTP 429: 请求受限')}");
+  w.run("window.zhixuDesktop.summarizeChat=async()=>{throw new Error('HTTP 429: 请求受限')}");
   await w.run('sendChat()');
   assert.match(w.run('state.chatMessages.at(-1).text'), /整理对话上下文失败.*429/);
   assert.equal(w.run('state.chatMessages.length'), 74);
@@ -476,13 +476,13 @@ test('summary failures preserve original history and retry safely without execut
   assert.equal(w.run('JSON.stringify(DB)'), before);
   assert.equal(w.run('state.chatSummarizing'), false);
   const retryId = w.run('state.chatMessages.at(-1).retryOf');
-  w.run(`window.xiaoyuDesktop.summarizeChat=async()=>({summary:'维修已完成；部署未完成。',model:'memory-model'});
-    window.xiaoyuDesktop.chat=async()=>{throw new Error('HTTP 502: 上游异常')};`);
+  w.run(`window.zhixuDesktop.summarizeChat=async()=>({summary:'维修已完成；部署未完成。',model:'memory-model'});
+    window.zhixuDesktop.chat=async()=>{throw new Error('HTTP 502: 上游异常')};`);
   await w.run(`sendChat(${JSON.stringify(retryId)})`);
   assert.match(w.run('state.chatMessages.at(-1).text'), /502/);
   assert.ok(JSON.parse(w.preferences['jw-chat-memory']).covered > 0);
-  w.run(`window.xiaoyuDesktop.summarizeChat=async()=>{throw new Error('不应再次摘要')};
-    window.xiaoyuDesktop.chat=async payload=>({reply:'已恢复',actions:[],warnings:[],model:payload.provider.model});`);
+  w.run(`window.zhixuDesktop.summarizeChat=async()=>{throw new Error('不应再次摘要')};
+    window.zhixuDesktop.chat=async payload=>({reply:'已恢复',actions:[],warnings:[],model:payload.provider.model});`);
   await w.run(`sendChat(${JSON.stringify(retryId)})`);
   assert.equal(w.run('state.chatMessages.at(-1).text'), '已恢复');
   assert.equal(w.run('state.chatMessages.filter(m=>m.id===' + JSON.stringify(retryId) + ').length'), 1);
@@ -520,7 +520,7 @@ test('message model identity survives switching during a request and confirming 
   w.fields['chat-input'] = { value: '请求模型甲', checkValidity: () => true };
   w.run(`DB.settings.aiProvider='custom'; DB.settings.customProvider={
     name:'供应商',baseUrl:'http://127.0.0.1',apiKey:'isolated',model:'model-a'};
-    window.xiaoyuDesktop={chat:()=>new Promise(resolve=>{window.finishReply=resolve})};`);
+    window.zhixuDesktop={chat:()=>new Promise(resolve=>{window.finishReply=resolve})};`);
   const pending = w.run('sendChat()');
   await new Promise(resolve => setImmediate(resolve));
   w.run(`DB.settings.customProvider.model='model-b'; state.chatModel=chatModelLabel();
@@ -529,7 +529,7 @@ test('message model identity survives switching during a request and confirming 
   await pending;
   assert.equal(w.run('state.chatMessages.at(-1).model'), 'model-a');
   assert.match(w.run('renderChatMessage(state.chatMessages.at(-1))'), /title="model-a">model-a<\/span>/);
-  w.run("window.xiaoyuDesktop.chat=async()=>({reply:'乙的回复',model:' ',actions:[],warnings:[]})");
+  w.run("window.zhixuDesktop.chat=async()=>({reply:'乙的回复',model:' ',actions:[],warnings:[]})");
   w.fields['chat-input'].value = '请求模型乙';
   await w.run('sendChat()');
   assert.equal(w.run('state.chatMessages.at(-1).model'), 'model-b');

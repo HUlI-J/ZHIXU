@@ -203,10 +203,10 @@ function openProfileSettings(tab = 'general') {
           <p id="profile-photo-status" class="small" role="status" aria-live="polite"></p>
 
           <div class="form-grid">
-            ${window.xiaoyuDesktop?.updates ? `<div class="field full">
+            ${window.zhixuDesktop?.updates ? `<div class="field full">
               <button class="btn" data-action="update-settings">${icon('download', 14)} 软件更新</button>
             </div>` : ''}
-            ${window.xiaoyuDesktop?.remoteAccess ? `<div class="field full">
+            ${window.zhixuDesktop?.remoteAccess ? `<div class="field full">
               <button class="btn" data-action="remote-settings">${icon('link', 14)} 网页访问</button>
             </div>` : ''}
             <div class="field full">
@@ -328,7 +328,7 @@ function openProfileSettings(tab = 'general') {
                   <span class="switch-track" aria-hidden="true"></span>
                 </label>
               </section>
-              <p class="settings-note">${icon('shield', 12)} 安装会沿用原安装位置与「知序」快捷方式，并在覆盖前备份 %APPDATA%\Xiaoyu 数据库。</p>
+              <p class="settings-note">${icon('shield', 12)} 安装会沿用原安装位置与「知序」快捷方式，并在覆盖前备份本机数据。</p>
             </div>
           </section>
           <section class="settings-pane" id="settings-about" role="tabpanel" aria-labelledby="settings-tab-about" data-settings-pane="about">
@@ -354,10 +354,10 @@ function openProfileSettings(tab = 'general') {
                 <div class="settings-card-body">
                   <div class="settings-card-title">开源仓库</div>
                   <p class="settings-card-desc">源代码、版本说明和安装包发布在 GitHub。</p>
-                  <code class="about-link-text">github.com/jun944049-huli/ZHIXU</code>
+                  <code class="about-link-text">github.com/HULI-J/ZHIXU</code>
                 </div>
                 <div class="settings-card-side">
-                  <button class="btn btn-sm" data-action="open-external" data-url="https://github.com/jun944049-huli/ZHIXU">${icon('link', 12)} 打开仓库</button>
+                  <button class="btn btn-sm" data-action="open-external" data-url="https://github.com/HULI-J/ZHIXU">${icon('link', 12)} 打开仓库</button>
                 </div>
               </section>
               <section class="settings-card">
@@ -366,13 +366,13 @@ function openProfileSettings(tab = 'general') {
                   <p class="settings-card-desc">遇到问题或有改进建议，可以在 GitHub 提交反馈。</p>
                 </div>
                 <div class="settings-card-side">
-                  <button class="btn btn-sm" data-action="open-external" data-url="https://github.com/jun944049-huli/ZHIXU/issues/new">${icon('message', 12)} 提交反馈</button>
+                  <button class="btn btn-sm" data-action="open-external" data-url="https://github.com/HULI-J/ZHIXU/issues/new">${icon('message', 12)} 提交反馈</button>
                 </div>
               </section>
               <section class="settings-card">
                 <div class="settings-card-body">
                   <div class="settings-card-title">数据与隐私</div>
-                  <p class="settings-card-desc">工作数据保存在本机，不会上传到 GitHub。默认位置为 %APPDATA%\Xiaoyu，也可以自己选择保存文件夹；更改时会复制现有数据后重启知序。</p>
+                  <p class="settings-card-desc">工作数据保存在本机，不会上传到 GitHub。默认位置为 %APPDATA%\\Zhixu；升级时自动迁移旧版默认目录并保留原数据，自定义位置继续沿用。实际位置如下。</p>
                   <code class="about-link-text" id="data-location-path">正在读取数据位置…</code>
                   <p class="settings-meta" id="data-location-note" hidden></p>
                 </div>
@@ -679,10 +679,10 @@ async function fetchCustomProviderModels() {
   const requestId = state.customProviderModelsRequest = {};
   if (!hint) return;
   if (!config.baseUrl || !config.apiKey) { hint.textContent = '请填写 API 地址与 API Key。'; return; }
-  if (!window.xiaoyuDesktop?.providerModels) { hint.textContent = '模型自动获取与接口诊断请使用更新后的桌面版。'; return; }
+  if (!window.zhixuDesktop?.providerModels) { hint.textContent = '模型自动获取与接口诊断请使用更新后的桌面版。'; return; }
   hint.textContent = '正在从供应商获取模型列表…';
   try {
-    const result = await window.xiaoyuDesktop.providerModels(config);
+    const result = await window.zhixuDesktop.providerModels(config);
     const now = customProviderForm();
     if (state.customProviderSession !== session || !hint.isConnected || requestId !== state.customProviderModelsRequest ||
         now.baseUrl !== config.baseUrl || now.apiKey !== config.apiKey) return;
@@ -706,13 +706,13 @@ async function testCustomProvider() {
   const panel = document.getElementById('custom-provider-diagnosis');
   const button = document.querySelector('[data-action="test-custom-provider"]');
   if (!hint || !panel || button?.disabled) return;
-  if (!window.xiaoyuDesktop?.providerDiagnose) { hint.textContent = '接口诊断请使用更新后的桌面版。'; return; }
+  if (!window.zhixuDesktop?.providerDiagnose) { hint.textContent = '接口诊断请使用更新后的桌面版。'; return; }
   state.customProviderTested = false;
   hint.textContent = '正在检查配置、模型列表与真实文本请求…';
   panel.innerHTML = '';
   if (button) button.disabled = true;
   try {
-    const report = await window.xiaoyuDesktop.providerDiagnose(config);
+    const report = await window.zhixuDesktop.providerDiagnose(config);
     if (session !== state.customProviderSession || !panel.isConnected || fingerprint !== customProviderFingerprint()) return;
     if (report.models.length) fillCustomProviderModels(report.models);
     if (report.model && !document.getElementById('custom-provider-model').value) {
@@ -903,8 +903,8 @@ async function parseCapture() {
     let title = deriveCaptureTitle(text);
     let model = '本地规则';
     if (provider.id !== 'local') {
-      if (!window.xiaoyuDesktop?.captureTask) throw new Error('当前预览不支持模型解析，请使用更新后的桌面版');
-      const parsed = await window.xiaoyuDesktop.captureTask({
+      if (!window.zhixuDesktop?.captureTask) throw new Error('当前预览不支持模型解析，请使用更新后的桌面版');
+      const parsed = await window.zhixuDesktop.captureTask({
         text, projectName: projectById(pid)?.name || '',
         provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model, protocol: provider.protocol || 'auto' }
       });

@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertMigrationTarget, migrateData, readDataLocation, validateEmptyTarget, writeDataLocation } from '../src/main/data-location';
+import { assertMigrationTarget, migrateData, migrateLegacyDefaultData, readDataLocation, resolveBrandedDataLocation, validateEmptyTarget, writeDataLocation } from '../src/main/data-location';
 
 function createDatabase(path: string) {
   const database = new DatabaseSync(path);
@@ -87,5 +87,71 @@ test('failed data migration leaves the selected empty folder clean', async () =>
   mkdirSync(target);
   await assert.rejects(migrateData(source, target, async () => { throw new Error('backup failed'); }), /backup failed/);
   assert.deepEqual(readdirSync(target), []);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('legacy Xiaoyu data migration preserves live WAL commits, assets, credentials and the source', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'zhixu-legacy-'));
+  const legacy = join(root, 'Xiaoyu');
+  const branded = join(root, 'Zhixu');
+  mkdirSync(join(legacy, 'attachments'), { recursive: true });
+  createDatabase(join(legacy, 'workbench.sqlite'));
+  const writer = new DatabaseSync(join(legacy, 'workbench.sqlite'));
+  writer.exec("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; UPDATE workbench SET payload='{\"marker\":\"latest\",\"encryptedSettings\":\"original-secret\"}'");
+  writeFileSync(join(legacy, 'attachments', 'source.txt'), 'source');
+  try {
+    await migrateLegacyDefaultData(legacy, branded);
+    const migrated = new DatabaseSync(join(branded, 'workbench.sqlite'), { readOnly: true });
+    try {
+      assert.equal(migrated.prepare('SELECT payload FROM workbench').get()!.payload,
+        writer.prepare('SELECT payload FROM workbench').get()!.payload);
+    } finally { migrated.close(); }
+    assert.equal(readFileSync(join(branded, 'attachments', 'source.txt'), 'utf8'), 'source');
+    assert.equal(writer.prepare('SELECT COUNT(*) AS count FROM workbench').get()!.count, 1);
+    assert.deepEqual(readdirSync(root).sort(), ['Xiaoyu', 'Zhixu']);
+  } finally { writer.close(); rmSync(root, { recursive: true, force: true }); }
+});
+
+test('legacy default migration refuses to overwrite a non-empty branded directory', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'zhixu-legacy-'));
+  const legacy = join(root, 'Xiaoyu');
+  const branded = join(root, 'Zhixu');
+  mkdirSync(legacy);
+  mkdirSync(branded);
+  writeFileSync(join(legacy, 'workbench.sqlite'), 'database');
+  writeFileSync(join(branded, 'existing.txt'), 'keep');
+  await assert.rejects(migrateLegacyDefaultData(legacy, branded), /空文件夹/);
+  assert.equal(readFileSync(join(branded, 'existing.txt'), 'utf8'), 'keep');
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('failed legacy migration never activates a partial database and can retry', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'zhixu-legacy-'));
+  const legacy = join(root, 'Xiaoyu'), branded = join(root, 'Zhixu');
+  mkdirSync(legacy);
+  writeFileSync(join(legacy, 'workbench.sqlite'), 'invalid database');
+  assert.equal((await resolveBrandedDataLocation(branded, legacy)).path, legacy);
+  assert.deepEqual(readdirSync(root), ['Xiaoyu']);
+  rmSync(join(legacy, 'workbench.sqlite'));
+  createDatabase(join(legacy, 'workbench.sqlite'));
+  assert.equal((await resolveBrandedDataLocation(branded, legacy)).path, branded);
+  assert.equal((await resolveBrandedDataLocation(branded, legacy)).path, branded);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('brand migration retains custom data locations and never replaces an existing Zhixu database', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'zhixu-legacy-'));
+  const legacy = join(root, 'Xiaoyu'), branded = join(root, 'Zhixu'), custom = join(root, 'custom');
+  mkdirSync(custom);
+  createDatabase(join(custom, 'workbench.sqlite'));
+  writeDataLocation(legacy, custom);
+  assert.equal((await resolveBrandedDataLocation(branded, legacy)).path, custom);
+  rmSync(join(custom, 'workbench.sqlite'));
+  const unavailable = await resolveBrandedDataLocation(branded, legacy);
+  assert.equal(unavailable.path, legacy);
+  assert.match(unavailable.warning, /不可用/);
+  mkdirSync(branded);
+  createDatabase(join(branded, 'workbench.sqlite'));
+  assert.equal((await resolveBrandedDataLocation(branded, legacy)).path, branded);
   rmSync(root, { recursive: true, force: true });
 });

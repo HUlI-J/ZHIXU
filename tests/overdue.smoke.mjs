@@ -8,9 +8,9 @@ const evidence = join(root, '.desktop-test');
 mkdirSync(evidence, { recursive: true });
 const { ELECTRON_RUN_AS_NODE, ...env } = process.env;
 const application = await electron.launch({
-  executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-  args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-  env: { ...env, XIAOYU_DATA_DIR: mkdtempSync(join(evidence, 'overdue-profile-')) }
+  executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+  args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+  env: { ...env, ZHIXU_DATA_DIR: mkdtempSync(join(evidence, 'overdue-profile-')) }
 });
 try {
   const page = await application.firstWindow();

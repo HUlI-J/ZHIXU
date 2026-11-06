@@ -12,15 +12,15 @@ const files = mkdtempSync(join(evidence, 'registry-plugin-files-'));
 writeFileSync(join(files, 'registry-fixture.txt'), 'isolated fixture');
 const { ELECTRON_RUN_AS_NODE, ...environment } = process.env;
 const application = await electron.launch({
-  executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-  args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-  cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile }
+  executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+  args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+  cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile }
 });
 try {
   const page = await application.firstWindow();
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
   const result = await page.evaluate(async path => {
-    const api = window.xiaoyuDesktop;
+    const api = window.zhixuDesktop;
     const install = await api.plugins({ action: 'install', source: '@modelcontextprotocol/server-filesystem', registry: 'official' });
     const id = install.id;
     try {

@@ -75,8 +75,8 @@ function shiftToday(delta) {
 async function openExternalLink(url) {
   if (!url) return;
   try {
-    if (window.xiaoyuDesktop?.openExternal) {
-      await window.xiaoyuDesktop.openExternal(url);
+    if (window.zhixuDesktop?.openExternal) {
+      await window.zhixuDesktop.openExternal(url);
       return;
     }
     const opened = window.open(url, '_blank', 'noopener');
@@ -94,12 +94,12 @@ function handleClick(e) {
   if (action.startsWith('remote-')) { void remoteAction(action); return; }
   if (action.startsWith('data-location-')) { void dataLocationAction(action); return; }
   if (action === 'web-logout') {
-    void persistWorkbench().then(() => window.xiaoyuDesktop.logout())
+    void persistWorkbench().then(() => window.zhixuDesktop.logout())
       .then(() => location.replace('/login')).catch(error => showToast(error.message));
     return;
   }
   if (action.startsWith('plugin-')) {
-    if (window.xiaoyuDesktop?.isRemote) { showToast('安装和运行本机插件请使用桌面版'); return; }
+    if (window.zhixuDesktop?.isRemote) { showToast('安装和运行本机插件请使用桌面版'); return; }
     if (action === 'plugin-open') { state.dataTab = 'plugins'; render(); }
     else if (action === 'plugin-manage') openPluginManager(el.dataset.id);
     else void handlePluginAction(action);

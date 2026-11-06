@@ -29,7 +29,7 @@ async function checkBounds(label) {
   assert.deepEqual(missing, [], label + ': broken images');
 }
 try {
-  await page.goto(process.env.XIAOYU_BROWSER_URL || 'http://127.0.0.1:5174/');
+  await page.goto(process.env.ZHIXU_BROWSER_URL || 'http://127.0.0.1:5174/');
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
   assert.equal(await page.locator('.brand-name').innerText(), '知序');
   assert.match(await page.title(), /知序/);

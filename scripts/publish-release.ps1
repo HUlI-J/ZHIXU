@@ -1,12 +1,13 @@
 param(
   [ValidateSet('create','upload','publish','verify')][string]$Action = 'verify',
-  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.0',
-  [string]$NotesPath = 'docs/18-0.2.0发布说明.md'
+  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.17',
+  [string]$NotesPath = 'docs/37-0.2.17发布说明.md',
+  [string]$ArtifactDirectory = 'release'
 )
 $ErrorActionPreference = 'Stop'
 $env:GCM_INTERACTIVE = 'never'
 $env:GIT_TERMINAL_PROMPT = '0'
-$credentialLines = "protocol=https`nhost=github.com`nusername=jun944049-huli`n`n" | git -c credential.interactive=never credential fill
+$credentialLines = "protocol=https`nhost=github.com`nusername=HULI-J`n`n" | git -c credential.interactive=never credential fill
 $credentials = @{}
 foreach ($entry in $credentialLines) {
   if ($entry -match '^([^=]+)=(.*)$') { $credentials[$matches[1]] = $matches[2] }
@@ -14,7 +15,7 @@ foreach ($entry in $credentialLines) {
 if (!$credentials['password']) { throw 'GitHub credential unavailable' }
 # Pass authentication through stdin, never process arguments or disk.
 $curlConfiguration = 'header = "Authorization: Bearer ' + $credentials['password'] + '"'
-$apiRoot = 'https://api.github.com/repos/jun944049-huli/ZHIXU/releases'
+$apiRoot = 'https://api.github.com/repos/HULI-J/ZHIXU/releases'
 $statePath = Join-Path 'release' "release-state-$Version.json"
 $assetNames = @("Zhixu-$Version-Windows-Setup.exe", "Zhixu-$Version-source.zip", "SHA256SUMS-$Version.txt")
 if ([version]$Version -ge [version]'0.2.9') {
@@ -51,7 +52,7 @@ if ($Action -eq 'upload') {
   if (!$state.draft) { throw 'Uploads require a draft release' }
   $uploadBase = $state.upload_url -replace '\{.*$',''
   foreach ($name in $assetNames) {
-    $assetPath = (Resolve-Path (Join-Path 'release' $name)).Path
+    $assetPath = (Resolve-Path (Join-Path $ArtifactDirectory $name)).Path
     $existing = @($state.assets | Where-Object name -eq $name)
     if (!$existing.Count) {
       $curlConfiguration | curl.exe --config - --http1.1 --noproxy '*' --connect-timeout 15 --max-time 300 --silent --show-error --fail-with-body -X POST -H 'Content-Type: application/octet-stream' -H 'Expect:' --data-binary "@$assetPath" --output (Join-Path 'release' "upload-$name.json") ($uploadBase+'?name='+[Uri]::EscapeDataString($name))
@@ -66,7 +67,7 @@ if ($Action -eq 'upload') {
 }
 if ($Action -in @('publish','verify')) {
   foreach ($name in $assetNames) {
-    $hash = (Get-FileHash -LiteralPath (Join-Path 'release' $name) -Algorithm SHA256).Hash.ToLower()
+    $hash = (Get-FileHash -LiteralPath (Join-Path $ArtifactDirectory $name) -Algorithm SHA256).Hash.ToLower()
     $asset = @($state.assets | Where-Object name -eq $name)
     if ($asset.Count -ne 1 -or $asset[0].state -ne 'uploaded' -or $asset[0].digest -ne "sha256:$hash") { throw "Asset verification failed: $name" }
   }

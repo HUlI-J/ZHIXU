@@ -9,10 +9,10 @@ import { once } from 'node:events';
 const root = resolve(import.meta.dirname, '..');
 const evidence = resolve(root, '.desktop-test');
 mkdirSync(evidence, { recursive: true });
-const dataDirectory = process.env.XIAOYU_TEST_DATA_DIR || mkdtempSync(join(evidence, 'profile-'));
+const dataDirectory = process.env.ZHIXU_TEST_DATA_DIR || mkdtempSync(join(evidence, 'profile-'));
 const errors = [];
 async function screenshot(page, name) {
-  if (process.env.XIAOYU_SKIP_SCREENSHOTS === '1') return;
+  if (process.env.ZHIXU_SKIP_SCREENSHOTS === '1') return;
   await page.screenshot({ path: join(evidence, name), scale: 'css', timeout: 15000 });
 }
 const calendarStart = new Date();
@@ -35,14 +35,14 @@ calendarServer.listen(0, '127.0.0.1');
 await once(calendarServer, 'listening');
 const calendarPort = calendarServer.address().port;
 const calendarUrl = `http://127.0.0.1:${calendarPort}/feed?token=qa-subscription-secret`;
-const executablePath = process.env.XIAOYU_TEST_EXE ||
+const executablePath = process.env.ZHIXU_TEST_EXE ||
   resolve(root, 'node_modules/electron/dist/electron.exe');
 const { ELECTRON_RUN_AS_NODE, ...electronEnvironment } = process.env;
 const launch = () => electron.launch({
   executablePath,
-  args: process.env.XIAOYU_TEST_EXE ? [] : [resolve(root, 'out/main/index.js')],
+  args: process.env.ZHIXU_TEST_EXE ? [] : [resolve(root, 'out/main/index.js')],
   cwd: root,
-  env: { ...electronEnvironment, XIAOYU_DATA_DIR: dataDirectory },
+  env: { ...electronEnvironment, ZHIXU_DATA_DIR: dataDirectory },
   timeout: 30000
 });
 const finishAnimations = page => page.evaluate(() => Promise.all(
@@ -60,7 +60,7 @@ try {
   assert.match(await page.title(), /知序/);
   assert.equal(await page.locator('.brand-name').innerText(), '知序');
   assert.ok(await page.locator('.brand-image').first().evaluate(image => image.complete && image.naturalWidth > 0));
-  assert.equal(await page.evaluate(() => typeof window.xiaoyuDesktop?.save), 'function');
+  assert.equal(await page.evaluate(() => typeof window.zhixuDesktop?.save), 'function');
   await page.locator('[data-action="capture"]').first().click();
   await page.locator('#capture-text').fill('星火项目：桌面端持久化验收任务，预计 1 小时，今天完成。');
   await page.locator('#parse-btn').click();
@@ -85,7 +85,7 @@ try {
   await finishAnimations(page);
   await screenshot(page, 'desktop-daily-report.png');
   await page.evaluate(() => persistWorkbench());
-  const persisted = await page.evaluate(() => window.xiaoyuDesktop.load());
+  const persisted = await page.evaluate(() => window.zhixuDesktop.load());
   assert.equal(persisted.db.sourceItems.length, 2);
   const savedProbe = await page.evaluate(async () => {
     DB.meta.queueProbe = 'initial';
@@ -95,7 +95,7 @@ try {
     DB.meta.queueProbe = 'initial';
     const secondSave = persistWorkbench();
     await Promise.all([firstSave, secondSave]);
-    return (await window.xiaoyuDesktop.load()).db.meta.queueProbe;
+    return (await window.zhixuDesktop.load()).db.meta.queueProbe;
   });
   assert.equal(savedProbe, 'initial');
   await page.locator('[data-action="nav"][data-view="projects"]').first().click();
@@ -227,7 +227,7 @@ try {
   await page.locator('[data-action="connector-disconnect"]').click();
   await page.waitForFunction(() => !DB.settings.integrations.dingtalk);
   await page.evaluate(() => persistWorkbench());
-  assert.equal(await page.evaluate(async () => !!(await window.xiaoyuDesktop.load()).db.settings.integrations.dingtalk), false);
+  assert.equal(await page.evaluate(async () => !!(await window.zhixuDesktop.load()).db.settings.integrations.dingtalk), false);
   await finishAnimations(page);
   await screenshot(page, 'desktop-integrations.png');
   await finishAnimations(page);
@@ -238,7 +238,7 @@ try {
   if (application) {
     const page = application.windows()[0];
     if (page) {
-      if (process.env.XIAOYU_SKIP_SCREENSHOTS !== '1') {
+      if (process.env.ZHIXU_SKIP_SCREENSHOTS !== '1') {
         await page.screenshot({ path: join(evidence, 'desktop-failure.png'), timeout: 5000 }).catch(() => {});
       }
       console.error(await page.locator('body').innerText().catch(() => 'No page content'));

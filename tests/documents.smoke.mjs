@@ -16,16 +16,16 @@ const errors = [];
 let application, page;
 async function launch() {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile, XIAOYU_EXPORT_DIR: exports }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile, ZHIXU_EXPORT_DIR: exports }
   });
   page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
   await application.evaluate(({ dialog }) => {
     dialog.showSaveDialog = async (_owner, options) => ({ canceled: false,
-      filePath: process.env.XIAOYU_EXPORT_DIR + '/' + options.defaultPath });
+      filePath: process.env.ZHIXU_EXPORT_DIR + '/' + options.defaultPath });
   });
 }
 const close = () => page.locator('#modal-root [data-action="close-modal"]').first().click();

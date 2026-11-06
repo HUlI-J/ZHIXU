@@ -2,7 +2,7 @@
 const pluginState = { items: [], loaded: false, loading: false, error: '', busy: false, id: null };
 
 function pluginListHTML() {
-  if (!window.xiaoyuDesktop?.plugins) return `<div class="plugin-empty">
+  if (!window.zhixuDesktop?.plugins) return `<div class="plugin-empty">
     ${icon('zap', 24)}<h3>安装你的工具</h3><p class="muted">在知序桌面版中安装和运行 MCP 插件。</p>
     <button class="btn" data-action="plugin-add">${icon('plus', 14)} 添加插件</button></div>`;
   if (pluginState.error) return `<div class="plugin-empty"><p role="alert">${esc(pluginState.error)}</p>
@@ -27,10 +27,10 @@ function renderPlugins() {
 }
 
 async function refreshPlugins() {
-  if (!window.xiaoyuDesktop?.plugins || pluginState.loading) return;
+  if (!window.zhixuDesktop?.plugins || pluginState.loading) return;
   pluginState.loading = true;
   try {
-    const result = await window.xiaoyuDesktop.plugins({ action: 'list' });
+    const result = await window.zhixuDesktop.plugins({ action: 'list' });
     pluginState.items = result.plugins;
     pluginState.error = '';
     pluginState.loaded = true;
@@ -51,7 +51,7 @@ function pluginError(error) {
 }
 
 function openPluginInstaller() {
-  const desktop = !!window.xiaoyuDesktop?.plugins;
+  const desktop = !!window.zhixuDesktop?.plugins;
   localModal('添加插件', `<p class="muted">输入 npm 包名、GitHub 仓库地址或本地目录。</p>
     <div class="plugin-source-row"><input id="plugin-source" class="input" aria-label="插件来源" placeholder="例如 @modelcontextprotocol/server-filesystem" maxlength="2000" autocomplete="off">
       <button class="icon-btn" data-action="plugin-pick" aria-label="选择本地插件目录" title="选择本地目录" ${desktop ? '' : 'disabled'}>${icon('folder', 20)}</button></div>
@@ -80,7 +80,7 @@ function pluginBusy(busy) {
 
 function updatePluginInstallButton() {
   const button = document.querySelector('[data-action="plugin-install"]');
-  if (button) button.disabled = pluginState.busy || !window.xiaoyuDesktop?.plugins || !document.getElementById('plugin-source')?.value.trim();
+  if (button) button.disabled = pluginState.busy || !window.zhixuDesktop?.plugins || !document.getElementById('plugin-source')?.value.trim();
 }
 
 function openPluginManager(id) {
@@ -131,14 +131,14 @@ async function savePluginConfig(id) {
   if (!Array.isArray(args) || args.some(item => typeof item !== 'string')) throw new Error('启动参数须为字符串数组');
   const env = pluginObject('plugin-env', undefined);
   if (env && Object.values(env).some(item => typeof item !== 'string')) throw new Error('环境变量的值须为字符串');
-  return window.xiaoyuDesktop.plugins({ action: 'configure', id, args, ...(env === undefined ? {} : { env }) });
+  return window.zhixuDesktop.plugins({ action: 'configure', id, args, ...(env === undefined ? {} : { env }) });
 }
 
 async function handlePluginAction(action) {
   if (action === 'plugin-add') { openPluginInstaller(); return; }
   if (action === 'plugin-refresh') { await refreshPlugins(); return; }
   if (action === 'plugin-manage') return;
-  if (!window.xiaoyuDesktop?.plugins) { pluginFeedback('请使用知序桌面版安装和运行插件。', true); return; }
+  if (!window.zhixuDesktop?.plugins) { pluginFeedback('请使用知序桌面版安装和运行插件。', true); return; }
   if (pluginState.busy) return;
   const id = pluginState.id;
   const modal = document.querySelector('.plugin-modal');
@@ -153,7 +153,7 @@ async function handlePluginAction(action) {
   try {
     switch (action) {
       case 'plugin-pick': {
-        const result = await window.xiaoyuDesktop.plugins({ action: 'pick' });
+        const result = await window.zhixuDesktop.plugins({ action: 'pick' });
         if (result.path && sourceInput?.isConnected) sourceInput.value = result.path;
         break;
       }
@@ -161,7 +161,7 @@ async function handlePluginAction(action) {
         const source = sourceInput.value.trim();
         const registry = document.getElementById('plugin-registry').value;
         pluginFeedback('正在下载和检查插件，请稍候…');
-        const result = await window.xiaoyuDesktop.plugins({ action: 'install', source, registry });
+        const result = await window.zhixuDesktop.plugins({ action: 'install', source, registry });
         await refreshPlugins();
         if (modal?.isConnected) { openPluginManager(result.id); pluginFeedback('安装完成。请配置需要的参数，再连接插件。'); }
         else showToast('插件安装完成，可在「插件」中管理');
@@ -171,14 +171,14 @@ async function handlePluginAction(action) {
       case 'plugin-connect': {
         pluginFeedback(action === 'plugin-connect' ? '正在保存配置并连接…' : '正在保存…');
         await savePluginConfig(id);
-        if (action === 'plugin-connect') await window.xiaoyuDesktop.plugins({ action: 'connect', id });
+        if (action === 'plugin-connect') await window.zhixuDesktop.plugins({ action: 'connect', id });
         await refreshPlugins();
         if (modal?.isConnected) { openPluginManager(id); pluginFeedback(action === 'plugin-connect' ? '连接成功，可以使用下方工具。' : '配置已保存，请重新连接。'); }
         break;
       }
       case 'plugin-disable':
       case 'plugin-remove': {
-        const result = await window.xiaoyuDesktop.plugins({ action: action === 'plugin-disable' ? 'disable' : 'remove', id });
+        const result = await window.zhixuDesktop.plugins({ action: action === 'plugin-disable' ? 'disable' : 'remove', id });
         await refreshPlugins();
         if (modal?.isConnected) action === 'plugin-remove' ? closeModal() : openPluginManager(id);
         if (result.warning) showToast(result.warning);
@@ -188,7 +188,7 @@ async function handlePluginAction(action) {
         const tool = document.getElementById('plugin-tool').value;
         const argumentsValue = pluginObject('plugin-tool-arguments', {});
         pluginFeedback('正在运行工具…');
-        const result = await window.xiaoyuDesktop.plugins({ action: 'call', id, tool, arguments: argumentsValue });
+        const result = await window.zhixuDesktop.plugins({ action: 'call', id, tool, arguments: argumentsValue });
         if (modal?.isConnected) {
           const output = document.getElementById('plugin-tool-output');
           output.hidden = false;

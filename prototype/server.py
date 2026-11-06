@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local preview server for the Xiaoyu prototype.
+"""Local preview server for the Zhixu prototype.
 
 It serves the static prototype and exposes POST /api/polish, an OpenAI-compatible
 proxy bound to 127.0.0.1. The browser supplies the provider, base URL, model and
@@ -53,7 +53,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path.split("?", 1)[0] == "/api/health":
             self._json(200, {
                 "ok": True,
-                "service": "xiaoyu-prototype",
+                "service": "zhixu-prototype",
                 "deepseek": bool(os.environ.get("DEEPSEEK_API_KEY", "").strip()),
             })
             return
@@ -204,7 +204,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 def main() -> None:
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Xiaoyu prototype: http://{HOST}:{PORT}/")
+    print(f"Zhixu prototype: http://{HOST}:{PORT}/")
     print("AI polish proxy (OpenAI-compatible): POST /api/polish")
     print("Press Ctrl+C to stop.")
     try:

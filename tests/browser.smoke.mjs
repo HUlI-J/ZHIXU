@@ -15,7 +15,7 @@ const finishAnimations = () => page.evaluate(() => Promise.all(
   ).map(animation => animation.finished.catch(() => {}))
 ));
 try {
-  await page.goto(process.env.XIAOYU_BROWSER_URL || 'http://127.0.0.1:5173/');
+  await page.goto(process.env.ZHIXU_BROWSER_URL || 'http://127.0.0.1:5173/');
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
   await page.locator('[data-action="nav"][data-view="projects"]').first().click();
   await page.locator('#view [data-action="new-project"]').click();
@@ -164,7 +164,7 @@ try {
   await page.locator('#modal-root [data-action="close-modal"]').first().click();
   await page.evaluate(() => {
     // Layout uses an isolated fake bridge; real requests are verified by the desktop audit.
-    window.xiaoyuDesktop = {
+    window.zhixuDesktop = {
       providerModels: async () => ({ models: ['image-model', 'text-model-with-a-long-provider-name'], endpoint: 'http://127.0.0.1/v1/models' }),
       providerDiagnose: async () => ({ ok: false, models: ['text-model-with-a-long-provider-name'],
         model: 'text-model-with-a-long-provider-name',
@@ -194,7 +194,7 @@ try {
       'provider configuration: ' + JSON.stringify(dimensions));
     await page.screenshot({ path: resolve(evidence, `browser-provider-${width}.png`) });
   }
-  await page.evaluate(() => { delete window.xiaoyuDesktop; });
+  await page.evaluate(() => { delete window.zhixuDesktop; });
   await page.locator('#modal-root [data-action="close-modal"]').first().click();
   await page.evaluate(() => {
     DB.settings.aiProvider = 'custom';

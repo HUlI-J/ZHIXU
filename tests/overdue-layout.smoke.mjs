@@ -5,19 +5,19 @@ import { join, resolve } from 'node:path';
 
 const evidence = resolve('.desktop-test');
 mkdirSync(evidence, { recursive: true });
-const desktop = Boolean(process.env.XIAOYU_TEST_EXE);
+const desktop = Boolean(process.env.ZHIXU_TEST_EXE);
 let application, browser;
 try {
   let page;
   if (desktop) {
     const { ELECTRON_RUN_AS_NODE, ...env } = process.env;
-    application = await electron.launch({ executablePath: process.env.XIAOYU_TEST_EXE,
-      env: { ...env, XIAOYU_DATA_DIR: mkdtempSync(join(evidence, 'overdue-layout-')) } });
+    application = await electron.launch({ executablePath: process.env.ZHIXU_TEST_EXE,
+      env: { ...env, ZHIXU_DATA_DIR: mkdtempSync(join(evidence, 'overdue-layout-')) } });
     page = await application.firstWindow();
   } else {
     browser = await chromium.launch({ channel: 'msedge', headless: true });
     page = await browser.newPage();
-    await page.goto(process.env.XIAOYU_BROWSER_URL || 'http://127.0.0.1:5174/');
+    await page.goto(process.env.ZHIXU_BROWSER_URL || 'http://127.0.0.1:5174/');
   }
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

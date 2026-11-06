@@ -24,7 +24,7 @@
     return { saved: true };
   }
   const unavailable = async () => { throw new Error('本机终端、文件夹和插件请在主机桌面版使用'); };
-  window.xiaoyuDesktop = {
+  window.zhixuDesktop = {
     isRemote: true,
     load: async () => {
       const result = await request('load');

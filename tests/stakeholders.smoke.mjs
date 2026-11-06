@@ -13,9 +13,9 @@ const errors = [];
 let application, page;
 const launch = async () => {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile }
   });
   page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));

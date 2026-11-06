@@ -1,6 +1,6 @@
 {
-  "name": "xiaoyu-workbench",
-  "version": "0.2.16",
+  "name": "zhixu-workbench",
+  "version": "0.2.17",
   "private": true,
   "description": "本机优先的 AI 个人工作台：把对话、项目、任务、文档和报告连接成可执行工作流。",
   "homepage": "https://github.com/HULI-J/ZHIXU#readme",
@@ -40,6 +40,7 @@
     "test:overdue": "node tests/overdue.smoke.mjs",
     "test:overdue-layout": "node tests/overdue-layout.smoke.mjs",
     "test:startup": "node tests/startup.smoke.mjs",
+    "test:brand": "node tests/brand.smoke.mjs",
     "test:remote": "node tests/remote.smoke.mjs",
     "test:updates": "node tests/updates.smoke.mjs",
     "pack": "npm run build && electron-builder --win dir",
@@ -98,7 +99,7 @@
       "repo": "ZHIXU"
     },
     "win": {
-      "executableName": "Xiaoyu",
+      "executableName": "Zhixu",
       "target": [
         "nsis"
       ],

@@ -22,7 +22,7 @@ function fixture(): WorkbenchSnapshot {
       },
       inbox: [{ id: 'i1', title: '待确认消息' }],
       settings: {
-        assistantName: '小鱼', deepseekKey: 'test-secret-key',
+        assistantName: '知序', deepseekKey: 'test-secret-key',
         integrations: { mail: { password: 'private-imap-password' }, ics: { url: 'https://example.com/private-feed' } }
       }
     },
@@ -31,7 +31,7 @@ function fixture(): WorkbenchSnapshot {
 }
 
 function withStore(run: (store: WorkbenchStore, path: string) => void) {
-  const directory = mkdtempSync(join(tmpdir(), 'xiaoyu-database-test-'));
+  const directory = mkdtempSync(join(tmpdir(), 'zhixu-database-test-'));
   const path = join(directory, 'test.sqlite');
   const store = new WorkbenchStore(path, codec);
   try { run(store, path); }
@@ -90,7 +90,7 @@ test('projection errors roll back the full snapshot and all task changes', () =>
 });
 
 test('unavailable system encryption does not erase existing work', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'xiaoyu-encryption-test-'));
+  const directory = mkdtempSync(join(tmpdir(), 'zhixu-encryption-test-'));
   const store = new WorkbenchStore(join(directory, 'test.sqlite'), {
     encrypt() { throw new Error('encryption unavailable'); },
     decrypt: value => value

@@ -55,9 +55,9 @@ let application, page;
 const errors = [];
 async function launch() {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile }
   });
   page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
@@ -68,7 +68,7 @@ const diagnose = async () => {
   await page.waitForFunction(() => !document.querySelector('[data-action="test-custom-provider"]').disabled);
 };
 async function screenshot(name) {
-  if (process.env.XIAOYU_SKIP_SCREENSHOTS === '1') return;
+  if (process.env.ZHIXU_SKIP_SCREENSHOTS === '1') return;
   await page.screenshot({ path: join(evidence, name), timeout: 15000 });
 }
 

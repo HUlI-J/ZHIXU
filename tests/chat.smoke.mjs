@@ -81,9 +81,9 @@ const errors = [];
 let application, page;
 async function launch() {
   application = await electron.launch({
-    executablePath: process.env.XIAOYU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
-    args: process.env.XIAOYU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
-    cwd: root, env: { ...environment, XIAOYU_DATA_DIR: profile }
+    executablePath: process.env.ZHIXU_TEST_EXE || join(root, 'node_modules/electron/dist/electron.exe'),
+    args: process.env.ZHIXU_TEST_EXE ? [] : [join(root, 'out/main/index.js')],
+    cwd: root, env: { ...environment, ZHIXU_DATA_DIR: profile }
   });
   page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
@@ -179,7 +179,7 @@ try {
   assert.match(await page.locator('.project-nav-item[data-id="sync-project"] .pcount').innerText(), /^2$/);
   assert.match(await page.locator('.chat-bubble').last().innerText(), /已同步 2 项任务/);
   assert.doesNotMatch(await page.locator('.chat-bubble').last().innerText(), /"actions"|\\n/);
-  await page.screenshot({ path: join(evidence, 'chat-work-sync-desktop.png') });
+  if (process.env.ZHIXU_SKIP_SCREENSHOTS !== '1') await page.screenshot({ path: join(evidence, 'chat-work-sync-desktop.png') });
   await send('设备部署正在进行中');
   assert.equal(await page.evaluate(() => taskLocation('deploy').task.status), '进行中');
   assert.match(await page.locator('.chat-bubble').last().innerText(), /进行中 1 项/);
@@ -198,7 +198,7 @@ try {
     window.setMinimumSize(320, 640); window.setSize(496, 850);
   });
   await assertComposerFixed();
-  await page.screenshot({ path: join(evidence, 'chat-work-sync-narrow.png') });
+  if (process.env.ZHIXU_SKIP_SCREENSHOTS !== '1') await page.screenshot({ path: join(evidence, 'chat-work-sync-narrow.png') });
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => window.isVisible()).setSize(1440, 1000));
   await send('设备部署完成，联调验收也完成了');
   assert.equal(await page.evaluate(() => projectById('sync-project').progress), 100);
@@ -267,7 +267,7 @@ try {
   await page.locator('[data-action="chat-details"]').first().click();
   await page.locator('.chat-rail details summary').click();
   assert.match(await page.locator('.chat-rail').innerText(), /对话记忆.*原记录保留/s);
-  await page.screenshot({ path: join(evidence, 'chat-memory-desktop.png') });
+  if (process.env.ZHIXU_SKIP_SCREENSHOTS !== '1') await page.screenshot({ path: join(evidence, 'chat-memory-desktop.png') });
   await page.evaluate(() => persistWorkbench());
   await application.close();
   await launch();

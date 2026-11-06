@@ -171,7 +171,7 @@ function overdueTasks() {
 
 function assistantName() {
   const name = DB.settings && String(DB.settings.assistantName || '').trim();
-  return !name || name === '小鱼' ? '知序' : name;
+  return name || '知序';
 }
 
 function appName() { return '知序'; }
