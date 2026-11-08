@@ -1,7 +1,7 @@
 param(
   [ValidateSet('create','upload','publish','verify')][string]$Action = 'verify',
-  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.18',
-  [string]$NotesPath = 'docs/40-0.2.18发布说明.md',
+  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.19',
+  [string]$NotesPath = 'docs/41-0.2.19发布说明.md',
   [string]$ArtifactDirectory = 'release',
   [string]$ExpectedPublisher = 'HULI-J'
 )
