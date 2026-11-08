@@ -1,0 +1,20 @@
+name = "zhixu-free-ai"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# 免费上游：默认智谱 GLM-4-Flash（OpenAI 兼容）。
+# 可在 Cloudflare 控制台或 wrangler 中覆盖这些变量。
+[vars]
+UPSTREAM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+UPSTREAM_MODEL = "glm-4-flash"
+DAILY_LIMIT = "50"
+
+# 每日配额持久化需要 KV。先创建：
+#   npx wrangler kv namespace create ZHIXU_KV
+# 然后把返回的 id 填到下面。
+# [[kv_namespaces]]
+# binding = "ZHIXU_KV"
+# id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# 上游密钥用 secret 注入，切勿写进仓库：
+#   npx wrangler secret put UPSTREAM_API_KEY

@@ -318,6 +318,43 @@ function handleClick(e) {
     case 'test-custom-provider':
       testCustomProvider();
       break;
+    case 'test-builtin-ai':
+      void testBuiltinAI();
+      break;
+    case 'builtin-consent-accept': {
+      const b = builtinAISettings();
+      b.consent = true;
+      b.enabled = true;
+      saveSettings();
+      closeModal();
+      render();
+      showToast('已启用内置免费 AI');
+      break;
+    }
+    case 'builtin-consent-decline': {
+      const b = builtinAISettings();
+      b.consent = false;
+      saveSettings();
+      closeModal();
+      render();
+      showToast('继续使用本地规则');
+      break;
+    }
+    case 'builtin-repeat-consent':
+      builtinConsentModal();
+      break;
+    case 'free-key-guide':
+      openFreeKeyGuide();
+      break;
+    case 'free-key-provider':
+      openFreeKeyProvider(el.dataset.id);
+      break;
+    case 'free-key-open-site':
+      void openExternalLink(el.dataset.url);
+      break;
+    case 'free-key-test-save':
+      void testAndSaveFreeKey(el.dataset.id);
+      break;
     case 'fetch-custom-models':
       fetchCustomProviderModels();
       break;
@@ -660,6 +697,7 @@ async function boot() {
   } catch (e) { /* ignore */ }
   document.documentElement.dataset.theme = state.theme;
   render();
+  try { if (typeof showBuiltinConsentIfNeeded === 'function') showBuiltinConsentIfNeeded(); } catch (e) { /* ignore */ }
   if (typeof initializeWorkbenchSync === 'function') initializeWorkbenchSync();
   initializeDesktopUpdates();
   document.addEventListener('click', handleClick);

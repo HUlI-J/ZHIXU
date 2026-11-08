@@ -206,6 +206,78 @@ function detectAIProvider(baseUrl, model) {
   return 'OpenAI 兼容';
 }
 
+// 内置免费 AI（体验版）：经知序 Cloudflare Worker 中转，上游为国内免费模型。
+// 部署 worker/ 后，把下面的地址替换成你自己的 workers.dev 地址；也可以直接在
+// “设置 → 模型 → 内置免费 AI”里填写服务地址，无需改代码。
+const BUILTIN_AI_BASE_URL = 'https://zhixu-free.example.workers.dev/v1';
+const BUILTIN_AI_MODEL = 'zhixu-free';
+
+// 免费 / 低价 API 供应商引导目录（国内优先）。用户注册后粘贴自己的 Key 即可长期使用，
+// 不再依赖知序中转的体验额度。免费额度与条款会变化，以各厂商官网为准。
+const FREE_API_PROVIDERS = [
+  {
+    id: 'zhipu', name: '智谱 GLM', tag: '国内 · 有免费档',
+    signupUrl: 'https://open.bigmodel.cn/', consoleUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash',
+    freeNote: 'GLM-4-Flash 等轻量模型长期有免费额度，适合日常解析、润色与问答。',
+    steps: ['打开智谱开放平台，用手机号注册并完成实名认证', '进入「API Keys / 密钥管理」创建密钥并复制', '回到本页粘贴 Key，点「测试并保存」']
+  },
+  {
+    id: 'dashscope', name: '阿里云百炼（通义千问）', tag: '国内 · 有免费额度',
+    signupUrl: 'https://bailian.console.aliyun.com/', consoleUrl: 'https://bailian.console.aliyun.com/?tab=model#/api-key',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-flash',
+    freeNote: 'qwen-flash / qwen-turbo 常有免费额度或限时免费，兼容 OpenAI 接口。',
+    steps: ['登录阿里云并开通「百炼」大模型服务', '在「API-KEY」页面创建密钥并复制', '回到本页粘贴 Key，确认模型后点「测试并保存」']
+  },
+  {
+    id: 'siliconflow', name: '硅基流动 SiliconFlow', tag: '国内 · 部分模型免费',
+    signupUrl: 'https://cloud.siliconflow.cn/', consoleUrl: 'https://cloud.siliconflow.cn/account/ak',
+    baseUrl: 'https://api.siliconflow.cn/v1', model: '',
+    freeNote: '注册后有免费模型池与赠送额度；模型 ID 请以控制台列表为准。',
+    steps: ['注册硅基流动账号', '在「API 密钥」页新建密钥并复制', '回到本页粘贴 Key，填写免费模型 ID（如 Qwen 小模型），点「测试并保存」']
+  },
+  {
+    id: 'deepseek', name: 'DeepSeek', tag: '国内 · 低价',
+    signupUrl: 'https://platform.deepseek.com/', consoleUrl: 'https://platform.deepseek.com/api_keys',
+    baseUrl: 'https://api.deepseek.com', model: 'deepseek-chat',
+    freeNote: '价格较低、适合长期使用（无长期免费档，新用户偶有赠送）。',
+    steps: ['注册 DeepSeek 开放平台并充值少量额度', '创建 API Key 并复制', '回到本页粘贴 Key，点「测试并保存」']
+  },
+  {
+    id: 'moonshot', name: 'Moonshot / Kimi', tag: '国内 · 有赠送额度',
+    signupUrl: 'https://platform.moonshot.cn/', consoleUrl: 'https://platform.moonshot.cn/console/api-keys',
+    baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k',
+    freeNote: '新用户常有赠送额度，长文本处理见长。',
+    steps: ['注册 Moonshot 开放平台并实名', '创建 API Key 并复制', '回到本页粘贴 Key，点「测试并保存」']
+  }
+];
+
+function newBuiltinInstallId() {
+  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (e) { /* ignore */ }
+  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+}
+
+function builtinAISettings() {
+  DB.settings = DB.settings || {};
+  const b = DB.settings.builtinAI && typeof DB.settings.builtinAI === 'object' ? DB.settings.builtinAI : {};
+  DB.settings.builtinAI = b;
+  if (!b.installId) b.installId = newBuiltinInstallId();
+  if (b.enabled === undefined) b.enabled = true;
+  if (b.baseUrl === undefined || b.baseUrl === '') b.baseUrl = BUILTIN_AI_BASE_URL;
+  if (!b.model) b.model = BUILTIN_AI_MODEL;
+  return b;
+}
+
+// 只有用户明确同意、开启并填写了合法地址时才启用；否则一律回退本地规则。
+function builtinAIConfig() {
+  const b = builtinAISettings();
+  if (b.enabled === false) return null;
+  if (b.consent !== true) return null;
+  const baseUrl = String(b.baseUrl || '').trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(baseUrl)) return null;
+  return { baseUrl, model: String(b.model || BUILTIN_AI_MODEL), installId: String(b.installId) };
+}
+
 function aiProviderConfig() {
   const s = DB.settings || {};
   const custom = s.customProvider || {};
@@ -231,6 +303,18 @@ function aiProviderConfig() {
       detected: 'DeepSeek'
     };
   }
+  const builtin = builtinAIConfig();
+  if (builtin) {
+    return {
+      id: 'builtin',
+      name: '知序内置免费',
+      baseUrl: builtin.baseUrl,
+      apiKey: 'zxf_' + builtin.installId,
+      model: builtin.model,
+      protocol: 'chat',
+      detected: '知序内置'
+    };
+  }
   return { id: 'local', name: '本地规则', baseUrl: '', apiKey: '', model: '', detected: '' };
 }
 
@@ -249,7 +333,7 @@ function refreshAIProviderUI() {
   const statusEl = document.getElementById('sidebar-ai-status');
   const pulse = document.getElementById('sidebar-ai-pulse');
   if (nameEl) nameEl.textContent = cfg.name;
-  if (statusEl) statusEl.textContent = cfg.id === 'local' ? '未配置' : '已配置';
+  if (statusEl) statusEl.textContent = cfg.id === 'local' ? '未配置' : cfg.id === 'builtin' ? '内置免费' : '已配置';
   if (pulse) pulse.className = 'pulse' + (cfg.id === 'local' ? ' off' : '');
   const pill = document.getElementById('topbar-ai-pill');
   if (pill) {

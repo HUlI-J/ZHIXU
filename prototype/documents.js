@@ -56,7 +56,7 @@ function openDocumentImport(target = 'chat') {
     ${textField('document-instructions', '通用分析指令', DB.documentInstructions || '提取可执行任务、负责人、截止日期和交付物；缺失信息标记待确认，不推测承诺。')}
     </div><p class="small muted mt-12">支持 DOC、DOCX、XLSX、PDF、PPTX、TXT、MD、CSV。旧版 XLS、PPT 请先另存为 XLSX、PPTX。</p>
     <p class="small muted mt-12">原文件先保存，再解析正文。解析失败可从附件记录重新解析或导出原文件。扫描 PDF 需先 OCR。</p>
-    <p class="small muted mt-12">选择 AI 时，正文会发送到已配置的供应商；本地规则只提取行动语句，自定义分析指令由 AI 处理。</p>
+    <p class="small muted mt-12">选择 AI 时，正文会发送到已配置的供应商或内置免费 AI；本地规则只提取行动语句，自定义分析指令由 AI 处理。</p>
     <div id="document-import-status" class="small mt-12" role="status" aria-live="polite"></div>
     <div id="document-import-results" class="document-import-results"></div>`,
     `<button class="btn" data-action="document-library">${icon('file', 13)} 附件记录 · 待确认 ${DB.documents.filter(d => !d.projectId).length}</button>
