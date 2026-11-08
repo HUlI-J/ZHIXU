@@ -2,7 +2,8 @@ param(
   [ValidateSet('create','upload','publish','verify')][string]$Action = 'verify',
   [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.18',
   [string]$NotesPath = 'docs/40-0.2.18发布说明.md',
-  [string]$ArtifactDirectory = 'release'
+  [string]$ArtifactDirectory = 'release',
+  [string]$ExpectedPublisher = 'HULI-J'
 )
 $ErrorActionPreference = 'Stop'
 $env:GCM_INTERACTIVE = 'never'
@@ -15,6 +16,17 @@ foreach ($entry in $credentialLines) {
 if (!$credentials['password']) { throw 'GitHub credential unavailable' }
 # Pass authentication through stdin, never process arguments or disk.
 $curlConfiguration = 'header = "Authorization: Bearer ' + $credentials['password'] + '"'
+$mutatingActions = @('create', 'upload', 'publish')
+if ($Action -in $mutatingActions) {
+  $publisherJson = $curlConfiguration | curl.exe --config - --http1.1 --noproxy '*' --connect-timeout 15 --max-time 30 `
+    --silent --show-error --fail-with-body -H 'Accept: application/vnd.github+json' 'https://api.github.com/user'
+  if ($LASTEXITCODE -ne 0) { throw 'Could not verify the authenticated GitHub publisher' }
+  $publisher = $publisherJson | ConvertFrom-Json
+  if ($publisher.login -ine $ExpectedPublisher) {
+    throw "Authenticated GitHub user '$($publisher.login)' does not match expected publisher '$ExpectedPublisher'"
+  }
+  Write-Output "GitHub publisher verified: $($publisher.login)"
+}
 $apiRoot = 'https://api.github.com/repos/HULI-J/ZHIXU/releases'
 $statePath = Join-Path 'release' "release-state-$Version.json"
 $assetNames = @("Zhixu-$Version-Windows-Setup.exe", "Zhixu-$Version-source.zip", "SHA256SUMS-$Version.txt")
