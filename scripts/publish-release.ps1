@@ -1,7 +1,7 @@
 param(
   [ValidateSet('create','upload','publish','verify')][string]$Action = 'verify',
-  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.17',
-  [string]$NotesPath = 'docs/37-0.2.17发布说明.md',
+  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.18',
+  [string]$NotesPath = 'docs/40-0.2.18发布说明.md',
   [string]$ArtifactDirectory = 'release'
 )
 $ErrorActionPreference = 'Stop'

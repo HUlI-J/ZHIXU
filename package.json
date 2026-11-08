@@ -1,6 +1,6 @@
 {
   "name": "zhixu-workbench",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "private": true,
   "description": "本机优先的 AI 个人工作台：把对话、项目、任务、文档和报告连接成可执行工作流。",
   "homepage": "https://github.com/HULI-J/ZHIXU#readme",
