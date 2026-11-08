@@ -23,6 +23,14 @@ import { Updates, UpdatePreparationError, updateFeedConfig } from './updates';
 import { configureUpdateTransport } from './update-http';
 import { assertMigrationTarget, dataLocationStatus, migrateData, resolveBrandedDataLocation, validateEmptyTarget, writeDataLocation } from './data-location';
 
+// 允许从界面打开的外链站点（仅 https）。供“免费 API Key 获取向导”使用。
+const EXTERNAL_SITE_DOMAINS = ['bigmodel.cn', 'aliyun.com', 'siliconflow.cn', 'deepseek.com', 'moonshot.cn'];
+function externalSiteAllowed(url: URL): boolean {
+  if (url.protocol !== 'https:') return false;
+  if (url.hostname === 'github.com' && /^\/HULI-J\/ZHIXU(?:\/|$)/i.test(url.pathname)) return true;
+  return EXTERNAL_SITE_DOMAINS.some(domain => url.hostname === domain || url.hostname.endsWith('.' + domain));
+}
+
 let store: WorkbenchStore;
 let window: BrowserWindow | null = null;
 let remoteAccess: RemoteAccess | undefined;
@@ -94,8 +102,7 @@ else {
       checkSender(event);
       const url = z.url().parse(payload);
       const parsed = new URL(url);
-      if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' ||
-          !/^\/HULI-J\/ZHIXU(?:\/|$)/i.test(parsed.pathname)) {
+      if (!externalSiteAllowed(parsed)) {
         throw new Error('不允许打开此链接');
       }
       await shell.openExternal(parsed.toString());

@@ -159,6 +159,8 @@ function openProfileSettings(tab = 'general') {
   const custom = (DB.settings && DB.settings.customProvider) || {};
   const activeProvider = (DB.settings && DB.settings.aiProvider) || (deepseekKey() ? 'deepseek' : 'local');
   const detected = custom.detected || detectAIProvider(custom.baseUrl, custom.model);
+  const builtin = builtinAISettings();
+  const builtinActive = builtin.consent === true && builtin.enabled !== false;
   state.profileDraft = { color: u.color, avatarImage: u.avatarImage || '', customProviderActive: activeProvider === 'custom' };
   state.customProviderTested = false;
   state.customProviderFingerprint = '';
@@ -239,6 +241,31 @@ function openProfileSettings(tab = 'general') {
           </section>
           <section class="settings-pane" id="settings-models" role="tabpanel" aria-labelledby="settings-tab-models" data-settings-pane="models">
           <div class="form-grid">
+            <div class="field full settings-field builtin-ai-box">
+              <div class="custom-provider-head">
+                <label>${icon('sparkles', 11)} 内置免费 AI（体验版）</label>
+                <span class="chip ${builtinActive ? 'green' : 'outline'}" id="builtin-ai-current">${builtinActive ? '使用中' : '未启用'}</span>
+              </div>
+              <label class="builtin-ai-switch"><input type="checkbox" id="builtin-ai-enabled" ${builtin.enabled !== false ? 'checked' : ''}> 未配置自有 Key 时使用内置免费 AI</label>
+              <div class="hint">使用内置模式时，你发送的内容会经知序免费中转转发给国内模型供应商处理，每日额度有限；项目、任务等本地数据仍保存在本机。可在下方测试服务或改用自有 Key。</div>
+              <details class="provider-advanced full">
+                <summary>内置服务设置</summary>
+                <div class="form-grid">
+                  <div class="field full"><label>内置服务地址</label>
+                    <input class="input" id="builtin-ai-base" value="${esc(builtin.baseUrl || '')}" placeholder="https://xxx.workers.dev/v1" autocomplete="off" spellcheck="false"></div>
+                  <div class="field"><label for="builtin-ai-model">模型别名</label>
+                    <input class="input" id="builtin-ai-model" value="${esc(builtin.model || 'zhixu-free')}" maxlength="80" autocomplete="off" spellcheck="false"></div>
+                  <div class="field"><label>设备标识</label>
+                    <input class="input" value="${esc(builtin.installId)}" readonly></div>
+                </div>
+              </details>
+              <div class="row gap-6">
+                <button class="btn btn-sm" data-action="test-builtin-ai">${icon('zap', 12)} 测试内置服务</button>
+                <button class="btn btn-sm" data-action="free-key-guide">${icon('link', 12)} 获取免费 API Key</button>
+                <button class="btn btn-sm" data-action="builtin-repeat-consent">${icon('shield', 12)} 查看隐私说明</button>
+              </div>
+              <div class="hint" id="builtin-ai-status" role="status" aria-live="polite"></div>
+            </div>
             <details class="provider-quick full">
               <summary>DeepSeek 快速接入</summary>
             <div class="field full settings-field">
@@ -515,6 +542,9 @@ async function saveProfile() {
   let customModel = customModelEl ? customModelEl.value.trim() : '';
   const customBase = customBaseEl ? customBaseEl.value.trim().replace(/\/+$/, '') : '';
   const customKey = customKeyEl ? customKeyEl.value.trim() : '';
+  const builtinEnabledEl = document.getElementById('builtin-ai-enabled');
+  const builtinBaseEl = document.getElementById('builtin-ai-base');
+  const builtinModelEl = document.getElementById('builtin-ai-model');
   if (customBase && customKey && !customModel) {
     await fetchCustomProviderModels();
     customModel = customModelEl ? customModelEl.value.trim() : '';
@@ -539,6 +569,12 @@ async function saveProfile() {
   DB.user.avatarImage = state.profileDraft.avatarImage || '';
   DB.settings = DB.settings || {};
   DB.settings.deepseekKey = deepseek;
+  {
+    const b = builtinAISettings();
+    if (builtinEnabledEl) b.enabled = !!builtinEnabledEl.checked;
+    if (builtinBaseEl) b.baseUrl = builtinBaseEl.value.trim().replace(/\/+$/, '');
+    if (builtinModelEl) b.model = builtinModelEl.value.trim() || BUILTIN_AI_MODEL;
+  }
 
   if (customHasAny) {
     const detected = detectAIProvider(customBase, customModel);
@@ -576,6 +612,115 @@ async function saveProfile() {
   closeModal();
   render();
   showToast('设置已保存');
+}
+
+function builtinConsentModal() {
+  localModal('启用内置免费 AI', `
+    <p>未配置自有 API Key 时，知序可以使用<strong>内置免费 AI（体验版）</strong>完成对话、事项解析、润色与文档分析。</p>
+    <p class="small muted mt-12">开启后，你发送的文本内容会经知序的免费中转服务（Cloudflare Worker）转发给国内模型供应商处理。这与“数据只留在本机”的默认方式不同；项目、任务、聊天记录等本地数据仍保存在本机。中转按匿名设备标识和 IP 限流，每日额度有限，用尽后会回退本地规则。</p>
+    <ul class="small muted mt-12">
+      <li>你可以随时在“设置 → 模型”中关闭内置免费 AI 或改用自有 Key。</li>
+      <li>请勿在内置模式中输入密码、密钥等敏感信息。</li>
+    </ul>`,
+    `<button class="btn" data-action="builtin-consent-decline">暂不使用</button>
+     <button class="btn btn-primary" data-action="builtin-consent-accept">${icon('check', 13)} 同意并启用</button>`,
+    'builtin-consent');
+}
+
+// 首次进入且从未表态时，弹出显式同意；已同意或已拒绝则不再打扰。
+function showBuiltinConsentIfNeeded() {
+  const b = builtinAISettings();
+  if (!b || typeof b.consent === 'boolean' || b.enabled === false) return false;
+  const root = document.getElementById('modal-root');
+  if (!root || root.innerHTML.trim()) return false;
+  builtinConsentModal();
+  return true;
+}
+
+async function testBuiltinAI() {
+  const b = builtinAISettings();
+  const status = document.getElementById('builtin-ai-status');
+  const base = (document.getElementById('builtin-ai-base')?.value || '').trim().replace(/\/+$/, '');
+  const model = (document.getElementById('builtin-ai-model')?.value || '').trim() || BUILTIN_AI_MODEL;
+  if (!base) { if (status) status.textContent = '请先填写内置服务地址（部署 worker 后得到）。'; return; }
+  if (status) status.textContent = '正在连接内置服务…';
+  if (!window.zhixuDesktop || typeof window.zhixuDesktop.providerDiagnose !== 'function') {
+    if (status) status.textContent = '内置服务测试请在桌面版进行。'; return;
+  }
+  try {
+    const report = await window.zhixuDesktop.providerDiagnose({ baseUrl: base, apiKey: 'zxf_' + b.installId, model, protocol: 'chat' });
+    if (status) status.textContent = report && report.ok
+      ? `连接正常 · ${report.model || model}`
+      : '连接失败：' + ((report && report.suggestion) || '请检查服务地址与部署状态');
+  } catch (error) {
+    if (status) status.textContent = '连接失败：' + ((error && error.message) || '未知错误');
+  }
+}
+
+function openFreeKeyGuide() {
+  const items = FREE_API_PROVIDERS.map(p => `
+    <button class="btn free-key-item" data-action="free-key-provider" data-id="${esc(p.id)}">
+      <div class="free-key-item-head"><b>${esc(p.name)}</b><span class="chip outline">${esc(p.tag)}</span></div>
+      <p class="small muted">${esc(p.freeNote)}</p>
+    </button>`).join('');
+  localModal('获取免费 API Key', `
+    <p>内置免费 AI 的体验额度有限。你也可以使用自己的免费 API Key：在国内厂商注册领取免费额度后，把 Key 粘贴进来即可长期使用，额度与费用都由你自己掌控。</p>
+    <p class="small muted mt-8">用自己的 Key 时，内容会直接发给你选择的厂商，不再经过知序中转；Key 保存在本机加密设置中。</p>
+    <div class="free-key-list">${items}</div>`,
+    `<button class="btn" data-action="close-modal">关闭</button>`, 'free-key-guide');
+}
+
+function openFreeKeyProvider(id) {
+  const p = FREE_API_PROVIDERS.find(item => item.id === id);
+  if (!p) return;
+  localModal('获取 ' + p.name + ' API Key', `
+    <ol class="small free-key-steps">${p.steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol>
+    <div class="row gap-6 mt-8">
+      <button class="btn btn-sm" data-action="free-key-open-site" data-url="${esc(p.signupUrl)}">${icon('link', 12)} 打开注册页</button>
+      <button class="btn btn-sm" data-action="free-key-open-site" data-url="${esc(p.consoleUrl)}">${icon('link', 12)} 打开密钥页</button>
+    </div>
+    <div class="form-grid mt-12">
+      <div class="field full"><label>API Key</label><input class="input" id="free-key-input" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false"></div>
+      <div class="field full"><label>API 地址</label><input class="input" id="free-key-base" value="${esc(p.baseUrl)}" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label>模型</label><input class="input" id="free-key-model" value="${esc(p.model)}" placeholder="模型 ID" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="hint" id="free-key-status" role="status" aria-live="polite">填写后点「测试并保存」，会真实发送一次测试请求。</div>`,
+    `<button class="btn" data-action="free-key-guide">返回</button>
+     <button class="btn btn-primary" data-action="free-key-test-save" data-id="${esc(p.id)}">${icon('check', 13)} 测试并保存</button>`,
+    'free-key-provider');
+}
+
+async function testAndSaveFreeKey(id) {
+  const p = FREE_API_PROVIDERS.find(item => item.id === id);
+  const key = (document.getElementById('free-key-input')?.value || '').trim();
+  const base = (document.getElementById('free-key-base')?.value || '').trim().replace(/\/+$/, '');
+  const model = (document.getElementById('free-key-model')?.value || '').trim();
+  const status = document.getElementById('free-key-status');
+  if (!key || !base || !model) { if (status) status.textContent = '请填写 API Key、API 地址和模型。'; return; }
+  if (!window.zhixuDesktop || typeof window.zhixuDesktop.providerDiagnose !== 'function') {
+    if (status) status.textContent = '测试并保存请在桌面版进行。'; return;
+  }
+  if (status) status.textContent = '正在测试连接…';
+  try {
+    const report = await window.zhixuDesktop.providerDiagnose({ baseUrl: base, apiKey: key, model, protocol: 'auto' });
+    if (!report || !report.ok) {
+      if (status) status.textContent = '连接失败：' + ((report && report.suggestion) || '请检查 Key、地址与模型是否正确');
+      return;
+    }
+    DB.settings = DB.settings || {};
+    DB.settings.customProvider = {
+      name: (p && p.name) || '自定义供应商', baseUrl: base, apiKey: key,
+      model: report.model || model, protocol: report.protocol || 'auto',
+      detected: (p && p.name) || '', testedAt: new Date().toISOString()
+    };
+    DB.settings.aiProvider = 'custom';
+    saveSettings();
+    closeModal();
+    render();
+    showToast('已保存 ' + ((p && p.name) || '供应商') + '，后续优先使用自有 Key');
+  } catch (error) {
+    if (status) status.textContent = '连接失败：' + ((error && error.message) || '未知错误');
+  }
 }
 
 async function testDeepSeek() {
@@ -904,12 +1049,18 @@ async function parseCapture() {
     let model = '本地规则';
     if (provider.id !== 'local') {
       if (!window.zhixuDesktop?.captureTask) throw new Error('当前预览不支持模型解析，请使用更新后的桌面版');
-      const parsed = await window.zhixuDesktop.captureTask({
-        text, projectName: projectById(pid)?.name || '',
-        provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model, protocol: provider.protocol || 'auto' }
-      });
-      title = parsed.title;
-      model = parsed.model;
+      try {
+        const parsed = await window.zhixuDesktop.captureTask({
+          text, projectName: projectById(pid)?.name || '',
+          provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model, protocol: provider.protocol || 'auto' }
+        });
+        title = parsed.title;
+        model = parsed.model;
+      } catch (err) {
+        if (provider.id !== 'builtin') throw err;
+        title = deriveCaptureTitle(text);
+        model = '本地规则';
+      }
     }
     if (!result.isConnected) return;
     if (ta.value.trim() !== text) throw new Error('内容已修改，请重新解析');

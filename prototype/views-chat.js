@@ -772,9 +772,15 @@ async function sendChat(retryId = '') {
     state.chatMessages.push(...replies);
   } catch (error) {
     if (state.chatRequestId !== requestId) return;
-    state.chatMessages.push(chatMessage({ role: 'assistant', time: '现在', model: provider.model || '本地规则',
-      text: '模型请求失败：' + documentFailureReason(error) + '\n原消息已保留，尚未执行操作，可以重试。',
-      retryOf: user.id }));
+    if (provider.id === 'builtin') {
+      state.chatMessages.push(chatMessage(buildChatReply(text)));
+      state.chatMessages.push(chatMessage({ role: 'assistant', time: '现在', model: '本地规则',
+        text: '内置免费 AI 暂时不可用（' + documentFailureReason(error) + '），已改用本地规则回应。可在“设置 → 模型”测试内置服务，或配置自有 API Key。' }));
+    } else {
+      state.chatMessages.push(chatMessage({ role: 'assistant', time: '现在', model: provider.model || '本地规则',
+        text: '模型请求失败：' + documentFailureReason(error) + '\n原消息已保留，尚未执行操作，可以重试。',
+        retryOf: user.id }));
+    }
   } finally {
     if (state.chatRequestId !== requestId) return;
     saveChatHistory();
@@ -1036,6 +1042,14 @@ function schedulePolishAI(immediate = false) {
     } catch (err) {
       if (requestId !== state.polishRequestId) return;
       state.polishLoading = false;
+      if (provider.id === 'builtin') {
+        state.polishResult = polishText(text, tone);
+        state.polishStatus = 'local';
+        state.polishStatusText = '内置免费 AI 暂时不可用，已改用本地规则润色。';
+        updatePolishPreview();
+        updatePolishAIStatus();
+        return;
+      }
       state.polishStatus = 'error';
       state.polishStatusText = `${provider.name} 调用失败：` + ((err && err.message) || '未知错误');
       if (state.polishStatusText.length > 120) state.polishStatusText = state.polishStatusText.slice(0, 120) + '…';
