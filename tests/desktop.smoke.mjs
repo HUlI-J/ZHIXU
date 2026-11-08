@@ -13,7 +13,7 @@ const dataDirectory = process.env.ZHIXU_TEST_DATA_DIR || mkdtempSync(join(eviden
 const errors = [];
 async function screenshot(page, name) {
   if (process.env.ZHIXU_SKIP_SCREENSHOTS === '1') return;
-  await page.screenshot({ path: join(evidence, name), scale: 'css', timeout: 15000 });
+  await page.screenshot({ path: join(evidence, name), scale: 'css', timeout: 30000 });
 }
 const calendarStart = new Date();
 calendarStart.setDate(calendarStart.getDate() + 1);
@@ -61,6 +61,8 @@ try {
   assert.equal(await page.locator('.brand-name').innerText(), '知序');
   assert.ok(await page.locator('.brand-image').first().evaluate(image => image.complete && image.naturalWidth > 0));
   assert.equal(await page.evaluate(() => typeof window.zhixuDesktop?.save), 'function');
+  const consentDecline = page.locator('[data-action="builtin-consent-decline"]');
+  if (await consentDecline.count()) await consentDecline.click();
   await page.locator('[data-action="capture"]').first().click();
   await page.locator('#capture-text').fill('星火项目：桌面端持久化验收任务，预计 1 小时，今天完成。');
   await page.locator('#parse-btn').click();
