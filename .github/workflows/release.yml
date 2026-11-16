@@ -1,0 +1,98 @@
+name: Release Desktop
+
+# 手动触发，确保 main 的 PR 审核完成后才发布。
+# 该流程修复了 0.2.19 "打了 tag 但 Release 停在草稿、资源为空" 的问题：
+# 构建 -> 生成 latest.yml / 校验清单 -> 创建 Release -> 上传全部资源 -> 校验 -> 正式发布。
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（例如 0.2.20）'
+        required: true
+        type: string
+      notes_path:
+        description: '发布说明路径'
+        required: false
+        default: 'docs/RELEASE_TEMPLATE.md'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify version matches package.json
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($pkg -ne "${{ inputs.version }}") {
+            throw "package.json version ($pkg) != requested version (${{ inputs.version }})"
+          }
+
+      - name: Build and package
+        run: npm run dist
+
+      - name: Prepare release assets
+        shell: pwsh
+        run: |
+          $v = "${{ inputs.version }}"
+          Compress-Archive -Path (Get-ChildItem -Force | Where-Object { $_.Name -notin @('node_modules','out','release','desktop-public','.git','.desktop-test','outputs','.plugin-runtime') }) -DestinationPath "release/Zhixu-$v-source.zip" -Force
+          $files = @("Zhixu-$v-Windows-Setup.exe", "Zhixu-$v-Windows-Setup.exe.blockmap", "latest.yml", "Zhixu-$v-source.zip")
+          $lines = foreach ($f in $files) {
+            $hash = (Get-FileHash -LiteralPath (Join-Path release $f) -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $f"
+          }
+          [IO.File]::WriteAllLines((Join-Path release "SHA256SUMS-$v.txt"), $lines, [Text.UTF8Encoding]::new($false))
+
+          # 校验 latest.yml 版本与安装包 sha512 一致
+          $yml = Get-Content (Join-Path release 'latest.yml') -Raw
+          if ($yml -notmatch "version:\s*$v") { throw 'latest.yml version mismatch' }
+          $exeHash = (Get-FileHash -LiteralPath (Join-Path release "Zhixu-$v-Windows-Setup.exe") -Algorithm SHA512).Hash
+          $b64 = [Convert]::ToBase64String([Convert]::FromHexString($exeHash))
+          if ($yml -notmatch [regex]::Escape($b64)) { throw 'latest.yml sha512 mismatch' }
+
+      - name: Create release and upload assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $v = "${{ inputs.version }}"
+          $tag = "v$v"
+          $notes = "${{ inputs.notes_path }}"
+          gh release create $tag `
+            --repo HUlI-J/ZHIXU `
+            --title "知序 $v" `
+            --notes-file $notes `
+            --target $env:GITHUB_SHA `
+            release/Zhixu-$v-Windows-Setup.exe `
+            release/Zhixu-$v-Windows-Setup.exe.blockmap `
+            release/latest.yml `
+            release/Zhixu-$v-source.zip `
+            release/SHA256SUMS-$v.txt
+
+      - name: Verify published release is the latest feed
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $latest = gh api repos/HUlI-J/ZHIXU/releases/latest --jq '.tag_name'
+          if ($latest -ne "v${{ inputs.version }}") { throw "Latest release is $latest, expected v${{ inputs.version }}" }
+          $url = gh api repos/HUlI-J/ZHIXU/releases/latest --jq '.assets[] | select(.name=="latest.yml") | .browser_download_url'
+          if (-not $url) { throw 'latest.yml asset missing from published release' }
+          $yml = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+          if ($yml -notmatch "version:\s*${{ inputs.version }}") { throw 'Published latest.yml version mismatch' }
+          Write-Output "Release v${{ inputs.version }} published and verified as update feed."

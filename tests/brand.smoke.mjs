@@ -33,14 +33,14 @@ try {
   assert.equal(await page.evaluate(async () =>
     (await window.zhixuDesktop.openExternal('https://github.com/HUlI-J/ZHIXU/issues/new')).opened), true);
   assert.equal(await page.evaluate(async () => {
-    try { await window.zhixuDesktop.openExternal('https://github.com/HULI-J/ZHIXU-fake'); return false; }
+    try { await window.zhixuDesktop.openExternal('https://github.com/HUlI-J/ZHIXU-fake'); return false; }
     catch { return true; }
   }), true);
   await page.evaluate(() => openProfileSettings('about'));
   await page.locator('[data-settings-pane="about"]').waitFor({ state: 'visible' });
   assert.match(await page.locator('[data-settings-pane="about"]').innerText(), /%APPDATA%\\Zhixu/);
   assert.equal(await page.evaluate(async () => (await window.zhixuDesktop.dataLocation({ operation: 'status' })).path), profile);
-  assert.match(await page.locator('[data-action="open-external"]').first().getAttribute('data-url'), /github\.com\/HULI-J\/ZHIXU/);
+  assert.match(await page.locator('[data-action="open-external"]').first().getAttribute('data-url'), /github\.com\/HUlI-J\/ZHIXU/);
   if (process.env.ZHIXU_SKIP_SCREENSHOTS !== '1') {
     await page.screenshot({ path: join(evidence, 'brand-about-0.2.17.png'), animations: 'disabled' });
   }

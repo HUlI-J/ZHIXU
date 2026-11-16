@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/HULI-J/ZHIXU/releases/latest"><img src="https://img.shields.io/github/v/release/HULI-J/ZHIXU?style=flat-square&label=release" alt="最新版本"></a>
-  <a href="https://github.com/HULI-J/ZHIXU/stargazers"><img src="https://img.shields.io/github/stars/HULI-J/ZHIXU?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/HUlI-J/ZHIXU/releases/latest"><img src="https://img.shields.io/github/v/release/HUlI-J/ZHIXU?style=flat-square&label=release" alt="最新版本"></a>
+  <a href="https://github.com/HUlI-J/ZHIXU/stargazers"><img src="https://img.shields.io/github/stars/HUlI-J/ZHIXU?style=flat-square" alt="GitHub Stars"></a>
   <img src="https://img.shields.io/badge/platform-Windows-2f855a?style=flat-square" alt="Windows">
   <img src="https://img.shields.io/badge/desktop-Electron-47848f?style=flat-square" alt="Electron">
   <img src="https://img.shields.io/badge/data-local--first-526ea3?style=flat-square" alt="本机优先">
 </p>
 
 <p align="center">
-  <a href="https://github.com/HULI-J/ZHIXU/releases/latest"><strong>下载最新版</strong></a>
+  <a href="https://github.com/HUlI-J/ZHIXU/releases/latest"><strong>下载最新版</strong></a>
   · <a href="docs/26-知序操作手册.md">操作手册</a>
   · <a href="docs/27-异地访问说明.md">异地访问</a>
   · <a href="docs/17-插件安装与管理.md">插件指南</a>
-  · <a href="https://github.com/HULI-J/ZHIXU/issues">反馈问题</a>
+  · <a href="https://github.com/HUlI-J/ZHIXU/issues">反馈问题</a>
 </p>
 
 <p align="center">
@@ -82,7 +82,7 @@
 
 ## 快速开始
 
-1. 从 [GitHub Releases](https://github.com/HULI-J/ZHIXU/releases/latest) 下载 Windows 安装包，安装后打开桌面“知序”。
+1. 从 [GitHub Releases](https://github.com/HUlI-J/ZHIXU/releases/latest) 下载 Windows 安装包，安装后打开桌面“知序”。
 2. 在“设置 → 模型与供应商”中配置一个 OpenAI 兼容接口、DeepSeek、内置免费 AI（体验版）或本地规则模式。
 3. 新建一个项目，或先在对话中输入需要处理的事项。
 4. 上传文档时选择已有项目，或保留为待确认草稿；确认后再写入任务。
@@ -118,7 +118,7 @@
 - [插件安装与管理](docs/17-插件安装与管理.md)：插件来源、兼容性、MCP 连接和安全边界。
 - [连接器配置与测试](docs/06-连接器配置与测试说明.md)：飞书、钉钉、企业微信、IMAP、ICS 的字段与权限。
 - [开源项目与可复用方案调研](docs/04-开源项目与可复用方案调研.md)：产品定位和技术选型参考。
-- [发布说明](https://github.com/HULI-J/ZHIXU/releases)：版本变化和安装包。
+- [发布说明](https://github.com/HUlI-J/ZHIXU/releases)：版本变化和安装包。
 
 ## 开发
 
@@ -150,7 +150,7 @@ docs/           使用手册、设计文档和版本说明
 
 ## 反馈与贡献
 
-请通过 [GitHub Issues](https://github.com/HULI-J/ZHIXU/issues) 反馈问题，尽量附上：
+请通过 [GitHub Issues](https://github.com/HUlI-J/ZHIXU/issues) 反馈问题，尽量附上：
 
 - Windows 版本、知序版本和复现步骤。
 - 预期结果与实际结果。
