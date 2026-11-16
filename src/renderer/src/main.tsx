@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../prototype/styles.css';
 import '../../../prototype/refinements.css';
+import '../../../prototype/premium.css';
 
 const scripts = ['workbench-bundle.js'];
 

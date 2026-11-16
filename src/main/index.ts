@@ -27,7 +27,7 @@ import { assertMigrationTarget, dataLocationStatus, migrateData, resolveBrandedD
 const EXTERNAL_SITE_DOMAINS = ['bigmodel.cn', 'aliyun.com', 'siliconflow.cn', 'deepseek.com', 'moonshot.cn'];
 function externalSiteAllowed(url: URL): boolean {
   if (url.protocol !== 'https:') return false;
-  if (url.hostname === 'github.com' && /^\/HULI-J\/ZHIXU(?:\/|$)/i.test(url.pathname)) return true;
+  if (url.hostname === 'github.com' && /^\/HUlI-J\/ZHIXU(?:\/|$)/i.test(url.pathname)) return true;
   return EXTERNAL_SITE_DOMAINS.some(domain => url.hostname === domain || url.hostname.endsWith('.' + domain));
 }
 
