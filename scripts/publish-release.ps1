@@ -21,8 +21,8 @@
 #>
 param(
   [ValidateSet('create','upload','publish','verify','status')][string]$Action = 'status',
-  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.19',
-  [string]$NotesPath = 'docs/41-0.2.19发布说明.md',
+  [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.20',
+  [string]$NotesPath = 'docs/43-0.2.20发布说明.md',
   [string]$ArtifactDirectory = 'release',
   [string]$ExpectedPublisher = 'HUlI-J',
   [string]$Proxy = '',
