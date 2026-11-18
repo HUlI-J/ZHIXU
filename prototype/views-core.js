@@ -18,7 +18,7 @@ function renderSidebar() {
     <button class="project-nav-item ${state.view === 'project' && state.projectId === p.id ? 'active' : ''}" data-action="project" data-id="${p.id}">
       <span class="dot" style="background:${p.color}"></span>
       <span class="pname">${esc(p.name)}</span>
-      ${p.health === 'red' ? '<span class="risk-dot" title="有风险"></span>' : ''}
+      <span class="project-health-dot ${p.health === 'red' ? 'red' : p.health === 'amber' ? 'amber' : 'green'}" role="img" title="${p.health === 'red' ? '风险' : p.health === 'amber' ? '需关注' : '正常'}" aria-label="状态：${p.health === 'red' ? '风险' : p.health === 'amber' ? '需关注' : '正常'}"></span>
       <span class="pcount">${allWorkbenchTasks().filter(t => t.project === p.id && !t.done).length}</span>
     </button>
   `).join('');
