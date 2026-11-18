@@ -26,6 +26,7 @@
     "test:desktop": "node tests/desktop.smoke.mjs",
     "test:web": "node tests/browser.smoke.mjs",
     "test:design": "node tests/design.smoke.mjs",
+    "test:ui-layout": "node tests/ui-layout.smoke.mjs",
     "brand:render": "node scripts/render-brand.mjs",
     "test:interfaces": "node tests/interfaces.smoke.mjs",
     "test:documents": "node tests/documents.smoke.mjs",
