@@ -129,9 +129,22 @@ strong, b { font-weight: 640; }
   background: var(--bg-elev);
   border-right: 1px solid var(--line);
   padding: 16px 12px 12px;
-  position: relative;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
   z-index: 1;
 }
+.sidebar > .brand,
+.sidebar > .nav,
+.sidebar > .side-section,
+.sidebar > .sidebar-footer { flex: 0 0 auto; }
+.sidebar > .project-nav {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+.project-nav > .project-nav-item { flex-shrink: 0; }
 .brand { padding: 2px 8px 18px; }
 .brand-name { font-size: 16px; font-weight: 700; letter-spacing: .08em; color: var(--ink); }
 .brand-image { border-radius: 7px; }
@@ -165,6 +178,10 @@ strong, b { font-weight: 640; }
 .project-nav-item:hover { background: var(--surface-2); }
 .project-nav-item.active { background: var(--surface-2); color: var(--ink); font-weight: 640; }
 .project-nav-item .dot { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent); }
+.project-nav-item .project-health-dot { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; }
+.project-health-dot.green { background: var(--green); }
+.project-health-dot.amber { background: var(--amber); }
+.project-health-dot.red { background: var(--red); }
 .side-label { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
 .workspace-switch {
   border: 1px solid var(--line); background: var(--surface); border-radius: 9px;
@@ -238,7 +255,7 @@ strong, b { font-weight: 640; }
 }
 .card:hover, .settings-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-md); }
 .panel-head { border-bottom: 1px solid var(--line); }
-.stat-value { font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -.01em; font-family: Georgia, serif; }
+.stat-value { font-variant-numeric: lining-nums tabular-nums; font-weight: 600; letter-spacing: normal; font-family: var(--font); }
 .stat-label { color: var(--ink-3); font-size: 11.5px; }
 
 /* ============================ 表单 / 标签 ============================ */
