@@ -163,10 +163,10 @@ function renderReportBlock(b) {
   if (b.type === 'callout') return `<div class="report-callout">${esc(b.text)}</div>`;
   if (b.type === 'table') {
     return `
-      <table class="report-table">
+      <div class="report-table-scroll" role="region" aria-label="报告表格" tabindex="0"><table class="report-table">
         <thead><tr>${b.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
         <tbody>${b.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
-      </table>
+      </table></div>
     `;
   }
   return '';
@@ -231,7 +231,6 @@ function renderReports() {
         `).join('')}
       </aside>
 
-      <div class="report-center">
         <div class="report-toolbar">
           <div class="left">
             <span class="chip ${r.facts ? 'green' : 'outline'}">${icon('shield', 11)} 已汇总 ${r.facts} 条事实</span>
@@ -256,6 +255,7 @@ function renderReports() {
           </div>
         </div>
 
+      <div class="report-center">
         <article class="report-sheet">
           <h1>${esc(r.title)}</h1>
           <div class="report-meta">

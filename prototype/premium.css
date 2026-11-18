@@ -16,7 +16,7 @@
   /* 墨色文字 */
   --ink:             #1E2A25;
   --ink-2:           #56655E;
-  --ink-3:           #8C9A92;
+  --ink-3:           #65766B;
 
   /* 描边 */
   --line:            #DEE0D6;
@@ -53,9 +53,10 @@
   --radius-lg:       15px;
   --sidebar-w:       232px;
 
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI",
-          "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-head: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-head: var(--font);
+  --font-mono: Consolas, "SFMono-Regular", "Microsoft YaHei", monospace;
   --ease:            cubic-bezier(.22, .68, .32, 1);
 }
 
@@ -69,7 +70,7 @@
 
   --ink:             #E8EDE8;
   --ink-2:           #9DAEA6;
-  --ink-3:           #6E7F76;
+  --ink-3:           #9DAEA6;
 
   --line:            #2C3A34;
   --line-strong:     #3B4D45;
@@ -98,19 +99,20 @@
 }
 
 /* ============================ 基础与质感 ============================ */
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
 body {
-  font-size: 13.5px;
-  line-height: 1.75;
+  font-size: 14px;
+  line-height: 1.6;
   background: var(--bg);
   color: var(--ink);
 }
 h1, h2, h3, .brand-name { font-family: var(--font-head); }
-h1 { font-size: 30px; line-height: 1.3; font-weight: 700; letter-spacing: .06em; }
-h2 { font-size: 18px; font-weight: 650; letter-spacing: .04em; }
-h3 { font-size: 15px; font-weight: 640; letter-spacing: .02em; }
+h1 { font-size: 30px; line-height: 1.4; font-weight: 700; }
+h2 { font-size: 18px; line-height: 1.5; font-weight: 600; }
+h3 { font-size: 15px; line-height: 1.5; font-weight: 600; }
 .page-head h1, .date-title { font-family: var(--font-head); letter-spacing: .05em; }
-strong, b { font-weight: 640; }
+strong, b { font-weight: 600; }
 ::selection { background: var(--accent-soft); color: var(--ink); }
 
 /* 极淡宣纸纹理：只贴在应用主背景，不干扰内容可读性 */
@@ -163,7 +165,7 @@ strong, b { font-weight: 640; }
 }
 .nav-item:hover { background: var(--surface-2); color: var(--ink); }
 .nav-item:active { transform: scale(.985); }
-.nav-item.active { background: var(--accent-soft); color: var(--accent-deep); font-weight: 650; }
+.nav-item.active { background: var(--accent-soft); color: var(--accent-deep); font-weight: 700; }
 .nav-item.active::before {
   content: ""; position: absolute; left: -12px; top: 50%;
   width: 3px; height: 18px; transform: translateY(-50%);
@@ -176,13 +178,13 @@ strong, b { font-weight: 640; }
 
 .project-nav-item { border-radius: var(--radius-sm); transition: background .16s var(--ease); }
 .project-nav-item:hover { background: var(--surface-2); }
-.project-nav-item.active { background: var(--surface-2); color: var(--ink); font-weight: 640; }
+.project-nav-item.active { background: var(--surface-2); color: var(--ink); font-weight: 600; }
 .project-nav-item .dot { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent); }
 .project-nav-item .project-health-dot { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; }
 .project-health-dot.green { background: var(--green); }
 .project-health-dot.amber { background: var(--amber); }
 .project-health-dot.red { background: var(--red); }
-.side-label { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.side-label { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
 .workspace-switch {
   border: 1px solid var(--line); background: var(--surface); border-radius: 9px;
   padding: 9px 10px; box-shadow: var(--shadow-xs);
@@ -190,7 +192,7 @@ strong, b { font-weight: 640; }
 }
 .workspace-switch:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
 .workspace-avatar { border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
-.workspace-name { font-weight: 640; }
+.workspace-name { font-weight: 600; }
 .workspace-sub { font-size: 11px; color: var(--ink-3); }
 .sidebar-footer { position: relative; z-index: 1; }
 
@@ -205,7 +207,7 @@ strong, b { font-weight: 640; }
   position: relative;
   z-index: 30;
 }
-.crumbs strong { font-size: 14px; font-weight: 650; letter-spacing: .02em; }
+.crumbs strong { font-size: 14px; font-weight: 700; letter-spacing: .02em; }
 .top-search {
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
   color: var(--ink-3); padding: 6px 12px; min-width: 148px; justify-content: flex-start;
@@ -218,13 +220,13 @@ strong, b { font-weight: 640; }
   transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
 }
 .ai-pill:hover { border-color: var(--accent); box-shadow: var(--shadow-focus); }
-.ai-pill strong { color: var(--ink); font-weight: 640; }
+.ai-pill strong { color: var(--ink); font-weight: 600; }
 .ai-pill .dot { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
 .ai-pill .dot.off { background: var(--ink-3); box-shadow: 0 0 0 3px var(--surface-3); }
 
 /* ============================ 按钮 ============================ */
 .btn {
-  border-radius: var(--radius-sm); font-weight: 570; border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); font-weight: 600; border: 1px solid var(--line-strong);
   background: var(--surface); box-shadow: var(--shadow-xs);
   transition: transform .16s var(--ease), box-shadow .16s var(--ease),
               background .16s var(--ease), border-color .16s var(--ease);
@@ -271,7 +273,7 @@ strong, b { font-weight: 640; }
   color: var(--ink-2); transition: all .16s var(--ease);
 }
 .chip:hover { border-color: var(--line-strong); color: var(--ink); }
-.chip.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent-deep); font-weight: 640; }
+.chip.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent-deep); font-weight: 600; }
 .chip.green { background: var(--green-soft); border-color: transparent; color: var(--green); }
 
 /* 朱砂：只用于逾期 / 待确认等语义提示 */
@@ -280,7 +282,7 @@ strong, b { font-weight: 640; }
 
 /* ============================ 对话 ============================ */
 .chat-thread { scroll-behavior: smooth; }
-.chat-avatar { border-radius: var(--radius-sm); box-shadow: var(--shadow-xs); font-weight: 680; }
+.chat-avatar { border-radius: var(--radius-sm); box-shadow: var(--shadow-xs); font-weight: 700; }
 .chat-avatar.ai { background: var(--accent); color: #fff; }
 .chat-avatar.user { background: var(--surface-2); color: var(--ink-2); }
 .chat-bubble {
@@ -334,3 +336,81 @@ button, input, select, textarea, .card, .nav-item, .project-nav-item { transitio
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 9px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+
+/* Shared UI audit: typography, intrinsic sizing and responsive rules belong
+   after the theme so its desktop chrome cannot override smaller layouts. */
+button, input, select, textarea { line-height: 1.5; }
+.btn { font-weight: 600; }
+.template-item { font-size: 14px; font-weight: 600; min-width: 0; }
+.template-item.active { font-weight: 700; }
+.template-icon { flex: 0 0 24px; }
+.reports-layout { grid-template-areas: "toolbar toolbar" "templates content"; gap: 20px 24px; }
+.reports-layout > .template-list { grid-area: templates; }
+.reports-layout > .report-toolbar { grid-area: toolbar; margin: 0; border-bottom: 1px solid var(--line); }
+.reports-layout > .report-center { grid-area: content; }
+.report-toolbar .left, .report-toolbar .right { min-width: 0; max-width: 100%; }
+.report-toolbar .select { width: auto; max-width: 100%; min-width: 0; }
+.report-sheet { max-width: none; width: 100%; padding: 30px; }
+.report-sheet h1 { margin-top: 0; font-weight: 700; font-variant-numeric: lining-nums; }
+.report-body { overflow-wrap: anywhere; }
+.report-lead, .report-list li { font-size: 14px; line-height: 1.8; }
+.report-h { font-size: 15px; }
+.report-callout { font-size: 12px; }
+.report-foot { flex-wrap: wrap; }
+.report-table { table-layout: fixed; font-size: 12px; }
+.report-table-scroll { max-width: 100%; overflow-x: auto; }
+.report-table-scroll .report-table { min-width: 520px; }
+.report-table td, .report-table th { overflow-wrap: anywhere; }
+.report-meta, .report-foot, .report-table th { font-size: 12px; }
+.date-title, .stat-value, .report-period-label { font-variant-numeric: lining-nums tabular-nums; }
+.chat-bubble, .task-title, .inbox-detail, .connector-meta, .settings-card-desc,
+.report-meta, .modal-head h2, .modal-body, .feature-list-row { overflow-wrap: anywhere; }
+.modal-head h2, .modal-body, .task-main, .pc-title { min-width: 0; }
+.modal-foot { flex-wrap: wrap; }
+pre { max-width: 100%; overflow-x: auto; font-family: var(--font-mono); }
+code { font-family: var(--font-mono); }
+.report-body img, .chat-bubble img { max-width: 100%; height: auto; }
+.workspace-file-text, .workspace-terminal-output, .workspace-terminal-input input,
+.plugin-json, .plugin-tools pre { font-family: var(--font-mono); }
+.top-search { min-width: 0; }
+.detail-head { flex-wrap: wrap; }
+.detail-head > div:first-child { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.detail-actions { flex-wrap: wrap; max-width: 100%; }
+.detail-tabs { flex-wrap: wrap; }
+.pc-top h3, .pc-goal, .pc-meta, .pc-foot { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 1120px) { :root { --sidebar-w: 192px; } }
+@media (max-width: 920px) {
+  :root { --sidebar-w: 66px; }
+  .sidebar { padding: 16px 9px 10px; }
+  .workspace-switch { padding: 6px 0; }
+  .reports-layout { grid-template-areas: "toolbar" "templates" "content"; }
+  .template-list { flex-wrap: wrap; min-width: 0; }
+  .template-item { width: auto; }
+  .nav-item.active::before { display: none; }
+}
+@media (max-width: 680px) {
+  .topbar { padding: 0 10px; gap: 5px; height: 54px; }
+  .top-search { padding: 0; }
+  .ai-pill { padding: 0 3px; }
+  .brand { padding: 0 0 24px; }
+  .template-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .template-item { width: 100%; padding: 10px 6px; gap: 6px; }
+  .report-toolbar .right { margin-left: 0; }
+  .report-toolbar .select { max-width: 100%; }
+  .report-sheet { padding: 22px 18px; }
+  .report-sheet h1 { font-size: 23px; }
+  .chat-page-head .btn, .chat-suggestions .chip, .action-card .btn { font-size: 11px; }
+  .btn { max-width: 100%; }
+  .settings-card { flex-wrap: wrap; }
+  .panel-head, .panel-head > .row { flex-wrap: wrap; }
+  .risk-table { width: 100%; table-layout: fixed; overflow-wrap: anywhere; }
+}
+@media print {
+  :root, html[data-theme="dark"] {
+    --bg: #fff; --surface: #fff; --ink: #18231d; --ink-2: #34443a;
+    --ink-3: #4a5d50; --line: #ced6d0; --amber-soft: #f3ebdc;
+  }
+  .app::before { display: none; }
+  .report-sheet { padding: 0; border: 0; box-shadow: none; }
+  .report-table tr, .report-h { break-inside: avoid; }
+}
