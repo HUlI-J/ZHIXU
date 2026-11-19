@@ -98,6 +98,23 @@ function explicitProjectCreationRequest(text) {
     || /(?:项目|计划|工作流).{0,12}(?:创建|新建|建立|新增|立项)/.test(value);
 }
 
+function isNewProjectIntake(text) {
+  return /^(?:我们?|本人)?\s*(?:现在|刚刚|刚|最近|新)?\s*(?:接手(?:了|到)?|接到(?:了)?|接了)\s*(?:一个|一项|个)?\s*(?:全新|新)\s*的?\s*项目/.test(text);
+}
+
+function chatProjectDraft(text) {
+  const name = text.match(/(?:项目名称\s*[:：]|项目\s*[，,。]?\s*(?:叫作|叫做|叫|名为|命名为)\s*[:：]?)\s*[「『“"《]?([^\r\n，,。；;：:」』”"》！？!?]+)/)?.[1]?.trim() || '';
+  return {
+    role: 'assistant', time: '现在', model: '本地规则',
+    text: '请确认项目名称。确认后，我会把你描述的工作内容保存到项目目标。',
+    actionCard: {
+      type: 'project', title: '准备创建新项目', id: newRecordId('action'),
+      status: 'pending', name: name.slice(0, 150), goal: text.slice(0, 2000), raw: text,
+      items: [{ label: '工作内容', value: text.slice(0, 2000) }]
+    }
+  };
+}
+
 function ensureChat() {
   if (!Array.isArray(state.chatMessages)) state.chatMessages = [];
   purgeDeletedProjectChat();
@@ -155,8 +172,10 @@ async function prepareChatHistory(user, provider, requestId) {
   loadChatMemory();
   const messages = chatHistoryMessages(user);
   let memory = state.chatMemory;
-  if (memory && (memory.covered >= messages.length ||
-      memory.fingerprint !== await chatHistoryFingerprint(messages.slice(0, memory.covered)))) {
+  const invalidMemory = memory && (memory.covered >= messages.length ||
+    memory.fingerprint !== await chatHistoryFingerprint(messages.slice(0, memory.covered)));
+  if (state.chatRequestId !== requestId) return null;
+  if (invalidMemory) {
     memory = null;
     storageSet('jw-chat-memory', 'null');
     state.chatMemory = null;
@@ -184,10 +203,10 @@ async function prepareChatHistory(user, provider, requestId) {
     try {
       result = await window.zhixuDesktop.summarizeChat({
         provider, previousSummary: memory?.summary || '', messages: messages.slice(covered, end)
-      });
+      }, requestId);
     } catch (error) {
       throw new Error('整理对话上下文失败：' + documentFailureReason(error));
-    } finally { state.chatSummarizing = false; }
+    } finally { if (state.chatRequestId === requestId) state.chatSummarizing = false; }
     if (state.chatRequestId !== requestId) return null;
     if (typeof result.summary !== 'string' || !result.summary.trim() || result.summary.length > 5000) {
       throw new Error('对话摘要无效，原聊天记录已保留，请重试');
@@ -197,6 +216,7 @@ async function prepareChatHistory(user, provider, requestId) {
     if (fingerprint !== await chatHistoryFingerprint(chatHistoryMessages(user).slice(0, end))) {
       throw new Error('对话记录已更新，请重试；原聊天记录已保留');
     }
+    if (state.chatRequestId !== requestId) return null;
     covered = end;
     memory = { version: 1, covered, fingerprint, summary: result.summary.trim(),
       model: result.model || provider.model, updatedAt: new Date().toISOString() };
@@ -221,6 +241,18 @@ function ensureChatShortcuts() {
 function scrollChatToBottom() {
   const thread = document.getElementById('chat-thread');
   if (thread) thread.scrollTop = thread.scrollHeight;
+}
+
+function resizeChatInput(input, followEnd = false) {
+  if (!input) return;
+  const thread = document.getElementById('chat-thread');
+  const atBottom = thread && thread.scrollHeight - thread.clientHeight - thread.scrollTop <= 2;
+  const viewportTop = input.scrollTop;
+  // Its CSS max-height keeps the message history usable in a short window.
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
+  input.scrollTop = followEnd && input.selectionEnd === input.value.length ? input.scrollHeight : viewportTop;
+  if (atBottom) thread.scrollTo({ top: thread.scrollHeight, behavior: 'instant' });
 }
 
 function showEarlierChat() {
@@ -261,15 +293,22 @@ function renderChatActionCard(card) {
   const status = card.status || 'pending';
   const done = status === 'done';
   const cancelled = status === 'cancelled';
+  const isProject = card.type === 'project';
   return `
-    <div class="action-card ${done ? 'done' : ''} ${cancelled ? 'cancelled' : ''}">
+    <div class="action-card ${isProject ? 'chat-project-card' : ''} ${done ? 'done' : ''} ${cancelled ? 'cancelled' : ''}">
       <div class="action-card-head">
         ${icon(done ? 'check' : 'sparkles', 12)}
-        <span>${esc(card.title)}</span>
-        ${done ? '<span class="chip green" style="margin-left:auto">已执行</span>' : cancelled ? '<span class="chip" style="margin-left:auto">已取消</span>' : ''}
+        <span>${isProject && done ? '新项目' : esc(card.title)}</span>
+        ${done ? `<span class="chip green" style="margin-left:auto" role="status">${isProject ? '已创建' : '已执行'}</span>` : cancelled ? '<span class="chip" style="margin-left:auto">已取消</span>' : ''}
       </div>
       <div class="action-items">
-        ${card.items.map(it => `
+        ${isProject ? `<div class="field chat-project-name">
+          <label for="chat-project-name-${esc(card.id)}">项目名称</label>
+          <input class="input" type="text" id="chat-project-name-${esc(card.id)}"
+            data-chat-project-name="${esc(card.id)}" maxlength="150" value="${esc(card.name || '')}"
+            placeholder="请输入项目名称" ${status === 'pending' ? 'required' : 'readonly'}>
+        </div>` : ''}
+        ${card.items.filter(item => !isProject || item.label !== '名称').map(it => `
           <div class="action-item">
             <span class="ai-check">${icon(done ? 'check' : 'arrowRight', 10)}</span>
             <span><b>${esc(it.label)}</b><span>${esc(it.value)}</span></span>
@@ -278,11 +317,13 @@ function renderChatActionCard(card) {
       </div>
       ${status === 'pending' ? `
         <div class="action-foot">
-          <button class="btn btn-primary btn-sm" data-action="chat-apply" data-id="${card.id}">${icon('check', 12)} 确认执行</button>
+          <button class="btn btn-primary btn-sm" data-action="chat-apply" data-id="${esc(card.id)}">${icon('check', 12)} ${isProject ? '确认并创建' : '确认执行'}</button>
           ${card.type === 'progress' && !card.modelAction ? `<button class="btn btn-sm" data-action="chat-apply" data-id="${card.id}" data-mode="progress">只更新进度</button>` : ''}
           <button class="btn btn-sm btn-ghost" data-action="chat-cancel" data-id="${card.id}">取消</button>
         </div>
-      ` : ''}
+      ` : isProject && done && card.projectId ? `<div class="action-foot">
+        <button class="btn btn-sm" data-action="project" data-id="${esc(card.projectId)}">查看项目 ${icon('arrowRight', 12)}</button>
+      </div>` : ''}
     </div>
   `;
 }
@@ -313,7 +354,15 @@ function renderChatShortcuts() {
   `;
 }
 
+function chatMessageText(message) {
+  const text = String(message.text || '');
+  return message.role === 'user' ? text :
+    ZhixuChatFormatting.display(text).replace(/^早上好，[^。]+。/, `早上好，${DB.user.name}。`);
+}
+
 function renderChatMessage(m) {
+  m.id ||= newRecordId('message');
+  const id = esc(m.id);
   const isUser = m.role === 'user';
   const avatar = isUser
     ? `<span class="chat-avatar user" style="background:${DB.user.color}">${esc(DB.user.initials)}</span>`
@@ -322,16 +371,21 @@ function renderChatMessage(m) {
   const timestamp = chatMessageTimestamp(m);
   const meta = isUser ? `你 · ${esc(timestamp)}` :
     `${esc(assistantName())} · <span class="chat-message-model" title="${esc(model)}">${esc(model)}</span> · ${esc(timestamp)}`;
-  const text = isUser
-    ? String(m.text || '')
-    : ZhixuChatFormatting.display(String(m.text || '')).replace(/^早上好，[^。]+。/, `早上好，${DB.user.name}。`);
+  const text = chatMessageText(m);
+  const editing = isUser && state.chatEditing?.id === m.id;
   return `
     <div class="chat-msg ${isUser ? 'user' : 'assistant'}">
       ${avatar}
       <div class="chat-msg-body">
-        <div class="chat-bubble">${esc(text).replace(/\n/g, '<br>')}
+        ${editing ? `<div class="chat-message-editor">
+          <textarea class="textarea" id="chat-message-edit-input" rows="3" maxlength="20000" aria-label="编辑消息">${esc(state.chatEditing.text)}</textarea>
+          <div class="row gap-6">
+            <button class="btn btn-sm" data-action="chat-edit-cancel">取消</button>
+            <button class="btn btn-primary btn-sm" data-action="chat-edit-send" ${state.chatSending ? 'disabled' : ''}>重新发送</button>
+          </div>
+        </div>` : `<div class="chat-bubble">${esc(text).replace(/\n/g, '<br>')}
           ${m.suggestions ? renderChatQuick(m.suggestions) : ''}
-        </div>
+        </div>`}
         ${m.loggedNote ? `
           <div class="note-logged">
             ${icon('table', 12)}
@@ -349,7 +403,14 @@ function renderChatMessage(m) {
           <button class="btn btn-sm" data-action="document-chat-details" data-id="${esc(m.documentId)}">${icon('file', 12)} 详细 ${icon('arrowRight', 12)}</button>
         </div>` : ''}
         ${m.quick ? renderChatQuick(m.quick) : ''}
-        <div class="chat-meta">${meta}</div>
+        <div class="chat-meta">
+          <span>${meta}</span>
+          ${m.stopped ? '<span class="chat-stopped" role="status">已停止</span>' : ''}
+          ${text && !editing ? `<span class="chat-message-actions">
+            <button class="icon-btn" data-action="chat-message-copy" data-id="${id}" title="复制" aria-label="复制消息">${icon('copy', 13)}</button>
+            ${isUser ? `<button class="icon-btn" data-action="chat-message-edit" data-id="${id}" title="编辑" aria-label="编辑消息">${icon('edit', 13)}</button>` : ''}
+          </span>` : ''}
+        </div>
       </div>
     </div>
   `;
@@ -406,7 +467,9 @@ function renderChat() {
               <button class="icon-btn sm composer-tool" data-action="open-polish" title="润色" aria-label="润色">${icon('sparkles', 15)}</button>
               <span class="composer-spacer"></span>
               <span class="small muted chat-active-model" title="${esc(chatModelLabel())}">${esc(chatModelLabel())}</span>
-              <button class="send-btn" data-action="chat-send" aria-label="发送" ${state.chatSending ? 'disabled' : ''}>${icon('arrowUp', 16)}</button>
+              ${state.chatActiveMessageId
+                ? '<button type="button" class="send-btn chat-stop" data-action="chat-stop" aria-label="停止生成" title="停止生成"></button>'
+                : `<button type="button" class="send-btn" data-action="chat-send" aria-label="发送" ${state.chatSending ? 'disabled' : ''}>${icon('arrowUp', 16)}</button>`}
             </div>
           </div>
         </div>
@@ -699,13 +762,13 @@ function modelChatCard(action, raw) {
   return card;
 }
 
-async function sendChat(retryId = '') {
+async function sendChat(retryId = '', editedText) {
   if (state.chatSending) return;
   ensureChat();
   const ta = document.getElementById('chat-input');
   const previous = retryId ? state.chatMessages.find(message => message.id === retryId && message.role === 'user') : null;
-  if (!ta && !previous) return;
-  const text = previous ? previous.text : ta.value.trim();
+  if (!ta && !previous && editedText == null) return;
+  const text = previous ? previous.text : (editedText ?? ta.value).trim();
   if (!text) {
     showToast('先输入一句指令');
     return;
@@ -713,21 +776,31 @@ async function sendChat(retryId = '') {
 
   if (text.length > 20000) { showToast('单次消息不能超过 2 万字'); return; }
   const user = previous || chatMessage({ id: newRecordId('message'), role: 'user', time: '现在', text });
-  if (!previous) { state.chatMessages.push(user); state.chatDraft = ''; }
-  else state.chatMessages = state.chatMessages.filter(message => message.retryOf !== retryId);
+  if (!previous) {
+    state.chatMessages.push(user);
+    if (editedText == null) state.chatDraft = '';
+  } else {
+    delete user.stopped;
+    state.chatMessages = state.chatMessages.filter(message => message.retryOf !== retryId);
+  }
   saveChatHistory();
   const provider = aiProviderConfig();
   state.chatModel = chatModelLabel();
   state.chatRequestModel = state.chatModel;
   state.chatVisibleCount = 60;
   state.chatSending = true;
+  state.chatActiveMessageId = user.id;
   const requestId = ++state.chatRequestId;
+  const focusStop = document.activeElement?.dataset?.action === 'chat-send';
   render();
+  if (focusStop) document.querySelector('[data-action="chat-stop"]')?.focus({ preventScroll: true });
   scrollChatToBottom();
 
   try {
     let replies;
-    if (provider.id === 'local') replies = [chatMessage(buildChatReply(text))];
+    if (isNewProjectIntake(text) || (provider.id === 'local' && explicitProjectCreationRequest(text))) {
+      replies = [chatMessage(chatProjectDraft(text))];
+    } else if (provider.id === 'local') replies = [chatMessage(buildChatReply(text))];
     else {
       if (!window.zhixuDesktop?.chat) throw new Error('当前预览未接入模型对话，请使用更新后的桌面版');
       const history = await prepareChatHistory(user, provider, requestId);
@@ -738,7 +811,7 @@ async function sendChat(retryId = '') {
         provider: { baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: provider.model,
           protocol: provider.protocol || 'auto', name: provider.name },
         ...history, context
-      });
+      }, requestId);
       if (state.chatRequestId !== requestId) return;
       const model = String(result.model || '').trim() || provider.model;
       const actions = Array.isArray(result.actions) ? result.actions : [];
@@ -762,6 +835,7 @@ async function sendChat(retryId = '') {
         role: 'assistant', time: '现在', model, text: '另有一项待确认操作。', actionCard
       }))];
       if (workCard && automatic) {
+        state.chatActiveMessageId = null;
         state.chatMessages.push(...replies);
         await applyWorkUpdateMessage(reply, true);
         if (responseWarnings.length) reply.text += '\n\n' + responseWarnings.join('\n');
@@ -785,10 +859,44 @@ async function sendChat(retryId = '') {
     if (state.chatRequestId !== requestId) return;
     saveChatHistory();
     state.chatSending = false;
+    state.chatActiveMessageId = null;
     state.chatRequestModel = '';
+    const focusSend = document.activeElement?.dataset?.action === 'chat-stop';
     render();
+    if (focusSend) document.querySelector('[data-action="chat-send"]')?.focus({ preventScroll: true });
     scrollChatToBottom();
   }
+}
+
+function stopChat() {
+  if (!state.chatSending || !state.chatActiveMessageId) return;
+  const requestId = state.chatRequestId++;
+  const user = state.chatMessages.find(message => message.id === state.chatActiveMessageId);
+  if (user) user.stopped = true;
+  state.chatActiveMessageId = null;
+  state.chatSummarizing = false;
+  state.chatSending = false;
+  state.chatRequestModel = '';
+  window.zhixuDesktop?.cancelChat?.(requestId)?.catch(() => {});
+  saveChatHistory();
+  const focusSend = document.activeElement?.dataset?.action === 'chat-stop';
+  render();
+  if (focusSend) document.querySelector('[data-action="chat-send"]')?.focus({ preventScroll: true });
+}
+
+function openChatMessageEditor(id) {
+  const message = state.chatMessages?.find(item => item.id === id && item.role === 'user');
+  if (!message) return;
+  state.chatEditing = { id, text: chatMessageText(message) };
+  render();
+  document.getElementById('chat-message-edit-input')?.focus({ preventScroll: true });
+}
+
+function resendEditedChatMessage() {
+  if (state.chatSending || !state.chatEditing?.text.trim()) return;
+  const text = state.chatEditing.text;
+  state.chatEditing = null;
+  return sendChat('', text);
 }
 
 async function applyChatAction(mode, cardId) {
@@ -801,7 +909,7 @@ async function applyChatAction(mode, cardId) {
   }
   const card = cardMsg.actionCard;
   if (card.type === 'work_update') { await applyWorkUpdateMessage(cardMsg); return; }
-  if (card.type === 'project' && !explicitProjectCreationRequest(card.raw)) {
+  if (card.type === 'project' && !explicitProjectCreationRequest(card.raw) && !isNewProjectIntake(card.raw)) {
     card.status = 'cancelled';
     showToast('本次没有明确新建项目，未创建项目');
     saveChatHistory();
@@ -853,13 +961,31 @@ async function applyChatAction(mode, cardId) {
     }
     summary = card.modelAction ? `已更新「${p.name}」风险：${card.riskTitle} · ${card.riskLevel}` :
       `已把「${p ? p.name : '项目'}」的首条未关闭风险提升为高，请在风险登记册补充应对动作。`;
-  } else if (card.type === 'project' && card.modelAction) {
-    if (DB.projects.some(project => project.name === card.name)) { showToast('已有同名项目，请取消草稿并指定项目'); return; }
-    DB.projects.push({ id: newRecordId('project'), name: card.name, goal: card.goal, owner: card.owner || DB.user.name,
+  } else if (card.type === 'project') {
+    const name = String(card.name || '').trim();
+    if (!name || name.length > 150) {
+      document.getElementById('chat-project-name-' + card.id)?.focus({ preventScroll: true });
+      showToast('请填写 1 到 150 字的项目名称');
+      return;
+    }
+    const nameKey = name.normalize('NFKC').toLowerCase();
+    if (DB.projects.some(project => project.name.trim().normalize('NFKC').toLowerCase() === nameKey)) {
+      showToast('已有同名项目，请修改草稿中的名称或取消');
+      return;
+    }
+    const projectId = newRecordId('project');
+    DB.projects.push({ id: projectId, name, goal: card.goal || '', owner: card.owner || DB.user.name,
       code: 'PRJ', color: nextProjectColor(), progress: 0, health: 'green', planned: 0, open: 0, risks: 0,
       next: '未安排', nextDate: '—', updated: '刚刚', members: [{ i: DB.user.initials, c: DB.user.color }],
       createdAt: new Date().toISOString() });
-    summary = '已创建项目：' + card.name;
+    card.name = name;
+    card.projectId = projectId;
+    card.status = 'done';
+    saveChatHistory();
+    render();
+    try { await persistWorkbench(); showToast('已创建项目：' + name); }
+    catch { /* The storage adapter keeps the snapshot available for retry. */ }
+    return;
   } else {
     DB.inbox.unshift({
       id: newRecordId('inbox'), title: card.captureTitle || card.raw || '来自对话的消息',
@@ -895,6 +1021,12 @@ function cancelChat(cardId) {
   const cardMsg = [...state.chatMessages].reverse().find(m => m.actionCard &&
     m.actionCard.status === 'pending' && (!cardId || m.actionCard.id === cardId));
   if (cardMsg) cardMsg.actionCard.status = 'cancelled';
+  if (cardMsg?.actionCard.type === 'project') {
+    saveChatHistory();
+    render();
+    showToast('已取消，没有写入');
+    return;
+  }
   state.chatMessages.push(chatMessage({
     role: 'assistant', time: '现在', model: cardMsg?.model || '系统',
     text: '好的，不改。需要的话我可以先放到收件箱，等你之后再定。'
@@ -1163,6 +1295,7 @@ function applyPolish() {
   if (ta) {
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
+    resizeChatInput(ta, true);
   }
   showToast('已替换输入框，可继续编辑或发送');
 }
@@ -1283,4 +1416,5 @@ function fillChatInput(text) {
   ta.value = text;
   ta.focus();
   ta.setSelectionRange(ta.value.length, ta.value.length);
+  resizeChatInput(ta, true);
 }

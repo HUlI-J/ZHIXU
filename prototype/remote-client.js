@@ -1,9 +1,10 @@
 /* Loaded by the authenticated web host before the application starts. */
 (() => {
   let revision = '';
-  async function request(operation, payload, binary) {
+  const chatRequests = new Map();
+  async function request(operation, payload, binary, signal) {
     const response = await fetch('/remote-api/' + operation, {
-      method: payload === undefined ? 'GET' : 'POST', credentials: 'same-origin',
+      method: payload === undefined ? 'GET' : 'POST', credentials: 'same-origin', signal,
       headers: payload === undefined ? {} : { 'Content-Type': 'application/json', 'X-Zhixu-Client': '1' },
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
     });
@@ -13,6 +14,12 @@
       throw new Error(error.message || `请求失败（HTTP ${response.status}）`);
     }
     return binary ? response : response.json();
+  }
+  async function chatRequest(operation, payload, id) {
+    const controller = new AbortController();
+    if (id != null) chatRequests.set(id, controller);
+    try { return await request(operation, payload, false, controller.signal); }
+    finally { if (id != null) chatRequests.delete(id); }
   }
   async function download(operation, payload) {
     const response = await request(operation, payload, true);
@@ -43,8 +50,9 @@
     logout: () => request('logout', {}),
     polish: payload => request('polish', payload),
     captureTask: payload => request('capture-task', payload),
-    chat: payload => request('chat', payload),
-    summarizeChat: payload => request('chat-summary', payload),
+    chat: (payload, id) => chatRequest('chat', payload, id),
+    summarizeChat: (payload, id) => chatRequest('chat-summary', payload, id),
+    cancelChat: async id => { chatRequests.get(id)?.abort(); },
     providerModels: payload => request('provider-models', payload),
     providerDiagnose: payload => request('provider-diagnose', payload),
     integration: payload => request('integration', payload),
