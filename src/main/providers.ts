@@ -41,13 +41,14 @@ function advice(status: number) {
   return '请求被拒绝：核对模型、接入协议和供应商返回的具体错误。';
 }
 
-async function request(config: ProviderConfig, endpoint: string, body?: unknown, timeout = 20000) {
+async function request(config: ProviderConfig, endpoint: string, body?: unknown, timeout = 20000, signal?: AbortSignal) {
   let response: Response;
   try {
     response = await fetch(endpoint, {
       method: body ? 'POST' : 'GET', redirect: 'error',
       headers: { Authorization: `Bearer ${config.apiKey}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-      signal: AbortSignal.timeout(timeout), ...(body ? { body: JSON.stringify(body) } : {})
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout),
+      ...(body ? { body: JSON.stringify(body) } : {})
     });
   } catch (error) {
     const code = String((error as { cause?: { code?: string } }).cause?.code || '');
@@ -125,7 +126,9 @@ export function preferredModel(models: string[]) {
   return models.find(model => !/embed|rerank|whisper|tts|image|dall-e|moderation|audio|video/i.test(model)) || '';
 }
 
-export async function providerText(value: unknown, messages: Message[], options: { timeout?: number; maxTokens?: number } = {}) {
+export async function providerText(value: unknown, messages: Message[], options: {
+  timeout?: number; maxTokens?: number; signal?: AbortSignal
+} = {}) {
   const config = providerSchema.parse(value);
   if (!config.model) throw new ProviderError('尚未选择模型', '先获取模型列表并选择模型，或手动填写模型名称。');
   const protocols: Protocol[] = config.protocol === 'auto' ?
@@ -140,7 +143,7 @@ export async function providerText(value: unknown, messages: Message[], options:
           ...(protocol === 'chat' ? { messages } : { input: messages, store: false }),
           ...(options.maxTokens ? protocol === 'chat' ? { max_tokens: options.maxTokens } :
             { max_output_tokens: options.maxTokens } : {})
-        }, options.timeout || 60000);
+        }, options.timeout || 60000, options.signal);
         const data = result.data;
         const refusal = data.choices?.[0]?.message?.refusal ||
           data.output?.flatMap((item: any) => item.content || []).find((item: any) => item.type === 'refusal')?.refusal;

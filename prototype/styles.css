@@ -2480,8 +2480,8 @@ body[data-view="chat"] .sidebar { height: 100%; }
   align-items: flex-start;
   gap: 11px;
   margin-bottom: 22px;
-  animation: rise .24s ease both;
 }
+.view-enter .chat-msg { animation: rise .24s ease both; }
 .chat-msg.user { flex-direction: row-reverse; }
 
 .chat-avatar {

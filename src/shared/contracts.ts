@@ -71,8 +71,9 @@ export interface DesktopAPI {
   dataLocation?(payload: unknown): Promise<DataLocationStatus>;
   polish(payload: unknown): Promise<{ text: string; model: string; provider: string }>;
   captureTask(payload: unknown): Promise<{ title: string; model: string }>;
-  chat(payload: unknown): Promise<ChatResult>;
-  summarizeChat(payload: unknown): Promise<{ summary: string; model: string }>;
+  chat(payload: unknown, requestId?: number): Promise<ChatResult>;
+  summarizeChat(payload: unknown, requestId?: number): Promise<{ summary: string; model: string }>;
+  cancelChat?(requestId: number): Promise<void>;
   providerModels(payload: unknown): Promise<{ models: string[]; endpoint: string }>;
   providerDiagnose(payload: unknown): Promise<ProviderDiagnosis>;
   integration(payload: unknown): Promise<IntegrationResult>;
