@@ -294,6 +294,32 @@ strong, b { font-weight: 600; }
   border-radius: var(--radius) 4px var(--radius) var(--radius);
 }
 .chat-meta { color: var(--ink-3); font-size: 11px; }
+.chat-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-height: 24px; }
+.chat-msg.user .chat-meta { justify-content: flex-end; }
+.chat-message-actions { display: inline-flex; gap: 2px; }
+.chat-message-actions .icon-btn { width: 24px; height: 24px; }
+@media (hover: hover) {
+  .chat-message-actions { opacity: 0; pointer-events: none; }
+  .chat-msg:hover .chat-message-actions, .chat-msg:focus-within .chat-message-actions { opacity: 1; pointer-events: auto; }
+}
+.chat-message-editor { min-width: 0; }
+.chat-message-editor .textarea { display: block; height: auto; min-height: 72px; margin-bottom: 6px; }
+.chat-message-editor .row { flex-wrap: wrap; }
+.composer-bar .send-btn.chat-stop {
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #2d66c8;
+}
+.composer-bar .send-btn.chat-stop:hover { background: #2458b3; }
+.send-btn.chat-stop::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  background: #fff;
+}
+.chat-stopped { color: var(--ink-2); }
 .action-card { border-left: 3px solid var(--accent); padding: 12px 14px; }
 .action-card.done { border-left-color: var(--green); opacity: .8; }
 .action-card.cancelled { border-left-color: var(--ink-3); opacity: .6; }
@@ -307,6 +333,11 @@ strong, b { font-weight: 600; }
   box-shadow: var(--shadow-sm); transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
 }
 .composer-box:focus-within { border-color: var(--accent); box-shadow: var(--shadow-md), var(--shadow-focus); }
+.composer-box #chat-input { max-height: min(320px, 42vh); overflow-y: auto; }
+.chat-project-card .action-foot { flex-wrap: wrap; }
+.chat-project-name { margin: 7px 0; min-width: 0; }
+.chat-project-name .input[readonly] { background: var(--surface-2); }
+.chat-project-card .action-item span span { white-space: pre-wrap; }
 .composer-bar { border-top: 1px solid var(--line); }
 .composer-tool { color: var(--ink-3); }
 .composer-tool:hover { background: var(--accent-soft); color: var(--accent); }
