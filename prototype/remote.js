@@ -1,133 +1,119 @@
 /* Remote access controls live in the host application, never in a shared page. */
 let remoteStatusTimer;
-let remoteStatus = { running: false, busy: false };
+let remoteStatusGeneration = 0;
+let remoteActionPending = false;
+
 function generateAccessPassword() {
   const bytes = crypto.getRandomValues(new Uint8Array(18));
   return Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
 }
-async function copyRemotePassword(value) {
-  if (!value) return false;
-  try { await navigator.clipboard.writeText(value); return true; }
-  catch { return false; }
-}
+
 function reloadWorkbench() {
   if (window.zhixuDesktop?.reload) void window.zhixuDesktop.reload();
   else location.reload();
 }
+
+function showRemotePassword(value) {
+  const field = document.getElementById('remote-password');
+  if (!field) return;
+  field.value = value;
+  document.getElementById('remote-password-row').hidden = !value;
+}
+
+function setRemoteBusy(busy) {
+  document.querySelectorAll('.remote-modal button[data-action^="remote-"]')
+    .forEach(button => { button.disabled = busy; });
+}
+
 function paintRemoteStatus(result) {
-  remoteStatus = result;
   const label = document.getElementById('remote-access-status');
   if (!label) return;
   label.textContent = result.message;
   const url = document.getElementById('remote-url');
-  if (url) url.value = result.running ? result.url : '';
-  const start = document.querySelector('.remote-modal [data-action="remote-start"]');
-  const stop = document.querySelector('.remote-modal [data-action="remote-stop"]');
-  if (start) start.hidden = result.running;
-  if (stop) stop.hidden = !result.running;
-  document.querySelectorAll('.remote-modal .modal-foot button,.remote-modal [data-action="remote-password-generate"],.remote-modal [data-action="remote-password-copy"]')
-    .forEach(button => { button.disabled = result.busy; });
+  const ready = result.running && !!result.url;
+  const address = ready ? result.url : '';
+  if (url.value !== address || !ready) showRemotePassword('');
+  url.value = address;
+  document.getElementById('remote-access-details').hidden = !ready;
+  document.querySelector('.remote-modal [data-action="remote-start"]').hidden = ready;
+  document.querySelector('.remote-modal [data-action="remote-stop"]').hidden = !ready;
+  setRemoteBusy(result.busy || remoteActionPending);
 }
+
 async function refreshRemoteStatus() {
-  if (!window.zhixuDesktop?.remoteAccess) return undefined;
+  if (!window.zhixuDesktop?.remoteAccess || remoteActionPending) return;
+  const generation = ++remoteStatusGeneration;
   const result = await window.zhixuDesktop.remoteAccess({ operation: 'status' });
-  if (document.getElementById('remote-access-status')) paintRemoteStatus(result);
-  return result;
+  if (remoteStatusGeneration === generation && !remoteActionPending) paintRemoteStatus(result);
 }
-function setRemoteBusy(busy) {
-  document.querySelectorAll('.remote-modal .modal-foot button,.remote-modal [data-action="remote-password-generate"],.remote-modal [data-action="remote-password-copy"]')
-    .forEach(button => { button.disabled = busy; });
-}
+
 function openRemoteAccess() {
   if (!window.zhixuDesktop?.remoteAccess) return;
-  localModal('网页访问', `<div class="field">
-      <label for="remote-password">访问密码</label><input class="input" type="text" id="remote-password"
-      autocomplete="new-password" minlength="12" maxlength="200" placeholder="开启时自动生成，也可以手动输入">
-      <p class="hint">开启时留空会自动生成强密码并显示在这里。密码只保存哈希，关闭窗口后无法再次查看；忘记时点“生成密码”重置。</p>
-      <p id="remote-password-note" class="small muted mt-8" hidden></p>
-    </div>
-    <div class="row gap-8 mt-12"><button class="btn btn-sm" data-action="remote-password-generate">${icon('refresh', 13)} 生成密码</button>
-      <button class="btn btn-sm" data-action="remote-password-copy">${icon('copy', 13)} 复制密码</button></div>
-    <div class="field mt-16"><label for="remote-url">HTTPS 地址</label><input class="input" id="remote-url" readonly placeholder="开启后显示">
-      <button class="btn btn-sm mt-12" data-action="remote-url-copy">${icon('copy', 13)} 复制地址</button></div>
-    <p class="small muted">主机需保持知序运行、联网且不休眠。重新开启后地址可能变化；关闭访问或重置密码会退出已登录设备。</p>
-    <p id="remote-access-status" class="remote-feedback" role="status"></p>`,
-    `<button class="btn" data-action="remote-stop" hidden>关闭访问</button>
-    <button class="btn btn-primary" data-action="remote-start">${icon('link', 13)} 开启网页访问</button>`, 'remote-modal');
+  const copy = icon('copy', 13);
+  const refresh = icon('refresh', 13);
+  const link = icon('link', 13);
+  localModal('网页访问', [
+    '<p id="remote-access-status" class="remote-feedback" role="status">网页访问未开启</p>',
+    '<div id="remote-access-details" hidden>',
+    '<div class="field"><label for="remote-url">HTTPS 地址</label><input class="input" id="remote-url" readonly>',
+    '<button class="btn btn-sm mt-8" data-action="remote-url-copy">' + copy + ' 复制地址</button></div>',
+    '<div class="field mt-12" id="remote-password-row" hidden>',
+    '<label for="remote-password">访问密码</label><input class="input" type="text" id="remote-password" readonly autocomplete="off">',
+    '<button class="btn btn-sm mt-8" data-action="remote-password-copy">' + copy + ' 复制密码</button></div>',
+    '<p class="small muted mt-8">请保存本次密码。关闭窗口后，忘记密码可生成新密码；旧密码及登录会话将失效。</p>',
+    '<button class="btn btn-sm mt-8" data-action="remote-password-generate">' + refresh + ' 生成新密码</button></div>',
+    '<p class="small muted mt-12">主机需保持知序运行、联网且不休眠。重新开启后地址可能变化。</p>'
+  ].join(''),
+  '<button class="btn" data-action="remote-stop" hidden>关闭访问</button>' +
+  '<button class="btn btn-primary" data-action="remote-start">' + link + ' 开启网页访问</button>', 'remote-modal');
   clearInterval(remoteStatusTimer);
-  void refreshRemoteStatus();
+  if (remoteActionPending) setRemoteBusy(true);
+  void refreshRemoteStatus().catch(() => {});
   remoteStatusTimer = setInterval(() => { void refreshRemoteStatus().catch(() => {}); }, 2000);
 }
 
 async function remoteAction(action) {
   if (action === 'remote-settings') { openRemoteAccess(); return; }
-  const password = document.getElementById('remote-password');
   const status = document.getElementById('remote-access-status');
-  const note = document.getElementById('remote-password-note');
-  if (action === 'remote-password-generate') {
-    const value = generateAccessPassword();
-    if (password) { password.value = value; password.type = 'text'; }
-    if (remoteStatus.running) {
-      setRemoteBusy(true);
-      if (status) status.textContent = '正在应用新密码并重新开启网页访问…';
-      try {
-        await window.zhixuDesktop.remoteAccess({ operation: 'password', password: value });
-        const result = await window.zhixuDesktop.remoteAccess({ operation: 'start' });
-        if (password?.isConnected) { password.value = value; password.type = 'text'; }
-        if (note?.isConnected) { note.hidden = false; note.textContent = '新密码已应用；旧密码和原登录会话已失效。'; }
-        paintRemoteStatus(result);
-        const copied = await copyRemotePassword(value);
-        showToast(copied ? '新密码已生成、应用并复制' : '新密码已生成并应用，请点击“复制密码”');
-      } catch (error) {
-        if (status?.isConnected) status.textContent = error.message;
-      } finally { setRemoteBusy(false); }
-      return;
-    }
-    if (note?.isConnected) { note.hidden = false; note.textContent = '已生成新密码；点击“开启网页访问”后生效。'; }
-    showToast('已生成新密码，开启网页访问后生效');
-    return;
-  }
-  if (action.endsWith('-copy')) {
-    const field = action === 'remote-url-copy' ? document.getElementById('remote-url') : password;
-    if (!field?.value) { showToast('暂无可复制内容'); return; }
+  if (!status || remoteActionPending) return;
+  if (action === 'remote-url-copy' || action === 'remote-password-copy') {
+    const field = document.getElementById(action === 'remote-url-copy' ? 'remote-url' : 'remote-password');
+    if (!field?.value) return;
     try { await navigator.clipboard.writeText(field.value); showToast('已复制'); }
     catch { field.select(); showToast('请复制已选中的内容'); }
     return;
   }
-  if (action === 'remote-start') {
-    let generated = false;
-    if (password && !password.value.trim()) {
-      password.value = generateAccessPassword();
-      password.type = 'text';
-      generated = true;
-    }
-    const value = password?.value || '';
-    setRemoteBusy(true);
-    if (status) status.textContent = generated ? '正在自动生成密码并开启网页访问…' : '正在开启网页访问…';
-    try {
-      await persistWorkbench();
-      const result = await window.zhixuDesktop.remoteAccess({ operation: 'start', password: value || undefined });
-      if (password?.isConnected) { password.value = value; password.type = 'text'; }
-      if (note?.isConnected && generated) { note.hidden = false; note.textContent = '访问密码已自动生成，请立即复制保存。'; }
-      paintRemoteStatus(result);
-      if (generated) {
-        const copied = await copyRemotePassword(value);
-        showToast(copied ? '访问密码已自动生成并复制' : '访问密码已自动生成，请点击“复制密码”');
-      }
-    } catch (error) {
-      if (status?.isConnected) status.textContent = error.message;
-    } finally { setRemoteBusy(false); }
-    return;
-  }
+
+  const stopping = action === 'remote-stop';
+  const rotating = action === 'remote-password-generate';
+  if (!stopping && !rotating && action !== 'remote-start') return;
+  remoteActionPending = true;
+  remoteStatusGeneration++;
+  showRemotePassword('');
+  if (!stopping) document.getElementById('remote-access-details').hidden = true;
   setRemoteBusy(true);
-  if (status) status.textContent = '正在处理…';
+  status.textContent = stopping ? '正在关闭网页访问…' :
+    rotating ? '正在使用新密码重新开启网页访问…' : '正在建立 HTTPS 连接…';
   try {
-    const result = await window.zhixuDesktop.remoteAccess({ operation: action.slice('remote-'.length) });
-    if (status?.isConnected) status.textContent = result.message;
-    paintRemoteStatus(result);
+    if (stopping) {
+      const result = await window.zhixuDesktop.remoteAccess({ operation: 'stop' });
+      if (status.isConnected) paintRemoteStatus(result);
+    } else {
+      const password = generateAccessPassword();
+      await persistWorkbench();
+      const result = await window.zhixuDesktop.remoteAccess({ operation: 'start', password });
+      if (status.isConnected) {
+        paintRemoteStatus(result);
+        if (result.running && result.url) showRemotePassword(password);
+      }
+    }
   } catch (error) {
-    if (status?.isConnected) status.textContent = error.message;
+    if (status.isConnected) {
+      showRemotePassword('');
+      status.textContent = error.message;
+    }
   } finally {
+    remoteActionPending = false;
     setRemoteBusy(false);
   }
 }
