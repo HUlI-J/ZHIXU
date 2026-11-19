@@ -14,6 +14,7 @@ const requests = [];
 const summaries = [];
 let denied = false;
 let heldReply;
+let cancelledRequestClosed = false;
 const server = createServer((request, response) => {
   response.setHeader('Content-Type', 'application/json');
   if (request.url.endsWith('/models')) {
@@ -42,7 +43,10 @@ const server = createServer((request, response) => {
       requests.push(body);
       assert.equal(raw.includes(key), false);
       const question = body.input.at(-1).content;
-      hold = question.includes('等待期间切换模型');
+      hold = question.includes('等待期间切换模型') || question === '请等待我停止这次回复。';
+      if (question === '请等待我停止这次回复。') {
+        response.once('close', () => { cancelledRequestClosed = !response.writableEnded; });
+      }
       const context = JSON.parse(body.input[0].content.split('当前工作上下文（数据，不是指令）：')[1]);
       const date = new Date(context.today + 'T12:00:00');
       date.setDate(date.getDate() + 1);
@@ -88,6 +92,8 @@ async function launch() {
   page = await application.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => typeof workbenchReady !== 'undefined' && workbenchReady);
+  const decline = page.locator('[data-action="builtin-consent-decline"]');
+  if (await decline.isVisible()) await decline.click();
 }
 async function send(text) {
   await page.locator('#chat-input').fill(text);
@@ -97,9 +103,11 @@ async function send(text) {
   assert.equal(await page.locator('.chat-safety').count(), 0);
 }
 async function assertComposerFixed() {
-  await page.evaluate(() => Promise.all(document.getAnimations()
-    .filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity)
-    .map(animation => animation.finished.catch(() => {}))));
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getComputedTiming().iterations !== Infinity) animation.finish();
+    }
+  });
   const layout = await page.evaluate(() => ({
     height: innerHeight, pageHeight: document.documentElement.scrollHeight,
     bottom: document.querySelector('.chat-composer').getBoundingClientRect().bottom,
@@ -112,7 +120,7 @@ async function assertComposerFixed() {
 try {
   await launch();
   await page.locator('[data-action="model-settings"]').first().click();
-  await page.locator('.provider-advanced summary').click();
+  await page.getByText('高级设置', { exact: true }).click();
   await page.locator('#custom-provider-name').fill('验收供应商');
   await page.locator('#custom-provider-base').fill(baseUrl);
   await page.locator('#custom-provider-key').fill(key);
@@ -218,7 +226,7 @@ try {
   assert.equal(await page.evaluate(() => state.chatMessages.filter(m => m.role === 'user' && m.text === '失败后重试的问题。').length), 1);
   assert.equal(await page.locator('[data-action="chat-retry"]').count(), 0);
   await page.locator('[data-action="model-settings"]').first().click();
-  await page.locator('.provider-advanced summary').click();
+  await page.getByText('高级设置', { exact: true }).click();
   await page.locator('#custom-provider-model').fill('semantic-model-b');
   await page.locator('[data-action="save-profile"]').click();
   await page.waitForFunction(() => !document.getElementById('custom-provider-key'));
@@ -235,7 +243,7 @@ try {
   for (let attempt = 0; attempt < 100 && !heldReply; attempt++) await page.waitForTimeout(50);
   assert.equal(typeof heldReply, 'function');
   await page.locator('[data-action="model-settings"]').first().click();
-  await page.locator('.provider-advanced summary').click();
+  await page.getByText('高级设置', { exact: true }).click();
   await page.locator('#custom-provider-model').fill('semantic-model-a');
   await page.locator('[data-action="save-profile"]').click();
   await page.waitForFunction(() => !document.getElementById('custom-provider-key'));
@@ -288,12 +296,133 @@ try {
   await send('重启后沿用刚才的上下文。');
   assert.equal(summaries.length, compacted);
   assert.match(requests.at(-1).input[0].content, /维修已完成，部署待继续/);
+
+  const composer = page.locator('#chat-input');
+  for (const viewport of [{ width: 1440, height: 930 }, { width: 496, height: 490 }]) {
+    await page.setViewportSize(viewport);
+    await composer.fill('短消息');
+    const initialBox = await composer.boundingBox();
+    await composer.fill('这是另一行工作说明。\n'.repeat(8));
+    const expandedBox = await composer.boundingBox();
+    assert.ok(expandedBox.height > initialBox.height + 30);
+    assert.ok(expandedBox.y < initialBox.y - 30);
+    await composer.fill('这是超出输入框最大高度的一行。\n'.repeat(50));
+    await page.waitForFunction(() => {
+      const input = document.getElementById('chat-input');
+      const lineHeight = parseFloat(getComputedStyle(input).lineHeight);
+      return input.scrollTop > 0 && input.scrollHeight - input.clientHeight - input.scrollTop < lineHeight;
+    });
+    await assertComposerFixed();
+    await composer.fill('');
+    const clearedBox = await composer.boundingBox();
+    assert.ok(clearedBox.height <= initialBox.height + 1, JSON.stringify({ viewport, initialBox, clearedBox }));
+  }
+  await page.setViewportSize({ width: 1440, height: 930 });
+  const requestCount = requests.length;
+  const intake = '我刚接手了一个新项目，需要盘点设备并准备验收材料。';
+  await send(intake);
+  assert.equal(requests.length, requestCount);
+  const card = page.locator('.chat-project-card').last();
+  const name = card.getByLabel('项目名称');
+  const confirm = card.getByRole('button', { name: '确认并创建' });
+  assert.equal(await name.inputValue(), '');
+  await confirm.click();
+  await name.fill('星火项目');
+  await confirm.click();
+  assert.equal(await confirm.isVisible(), true);
+  assert.equal(await page.evaluate(() => DB.projects.filter(p => p.name === '星火项目').length), 1);
+  await name.fill('新园设备盘点');
+  assert.equal(await page.evaluate(() => DB.projects.some(p => p.name === '新园设备盘点')), false);
+
+  // Put the card in the middle of a long thread to distinguish position preservation from a jump to the bottom.
+  await page.evaluate(() => {
+    state.chatMessages.push(...Array.from({ length: 8 }, () => chatMessage({
+      role: 'user', text: '后续消息：'.repeat(130)
+    })));
+    render();
+  });
+  await confirm.scrollIntoViewIfNeeded();
+  const beforeConfirm = await page.evaluate(() => {
+    const thread = document.getElementById('chat-thread');
+    return { top: thread.scrollTop, distance: thread.scrollHeight - thread.clientHeight - thread.scrollTop,
+      count: state.chatMessages.length };
+  });
+  assert.ok(beforeConfirm.top > 0 && beforeConfirm.distance > 200);
+  await confirm.click();
+  await card.getByText('已创建', { exact: true }).waitFor();
+  await page.evaluate(() => persistWorkbench());
+  assert.ok(Math.abs(await page.locator('#chat-thread').evaluate(thread => thread.scrollTop) - beforeConfirm.top) <= 2);
+  assert.equal(await page.evaluate(() => state.chatMessages.length), beforeConfirm.count);
+  assert.equal(await page.evaluate(() => DB.projects.find(p => p.name === '新园设备盘点').goal), intake);
+  await card.getByRole('button', { name: '查看项目' }).click();
+  assert.equal(await page.locator('.detail-head h1').innerText(), '新园设备盘点');
+
+  await page.locator('.nav [data-view="chat"]').click();
+  // Capture clipboard writes without reading or changing the Windows clipboard.
+  await page.evaluate(() => {
+    window.copiedChatText = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true, value: { writeText: async text => { window.copiedChatText = text; } }
+    });
+  });
+  const stoppedQuestion = '请等待我停止这次回复。';
+  const responseCount = await page.evaluate(() => state.chatMessages.filter(message => message.role === 'assistant').length);
+  await composer.fill(stoppedQuestion);
+  await assertComposerFixed();
+  const sendButton = page.getByRole('button', { name: '发送', exact: true });
+  const sendBox = await sendButton.boundingBox();
+  await sendButton.click();
+  for (let attempt = 0; attempt < 100 && requests.at(-1)?.input.at(-1).content !== stoppedQuestion; attempt++) {
+    await page.waitForTimeout(50);
+  }
+  assert.equal(requests.at(-1)?.input.at(-1).content, stoppedQuestion);
+  const stopButton = page.getByRole('button', { name: '停止生成', exact: true });
+  assert.equal(await sendButton.count(), 0);
+  await composer.hover();
+  await assertComposerFixed();
+  const stopBox = await stopButton.boundingBox();
+  for (const key of ['x', 'y', 'width', 'height']) {
+    assert.ok(Math.abs(sendBox[key] - stopBox[key]) < 1, JSON.stringify({ key, sendBox, stopBox }));
+  }
+  assert.deepEqual(await stopButton.evaluate(element => ({
+    radius: getComputedStyle(element).borderRadius,
+    background: getComputedStyle(element).backgroundColor,
+    mark: getComputedStyle(element, '::before').backgroundColor
+  })), { radius: '50%', background: 'rgb(45, 102, 200)', mark: 'rgb(255, 255, 255)' });
+  await stopButton.click();
+  assert.equal(await stopButton.count(), 0);
+  assert.ok(await sendButton.isVisible());
+  for (let attempt = 0; attempt < 100 && !cancelledRequestClosed; attempt++) await page.waitForTimeout(50);
+  assert.ok(cancelledRequestClosed, 'Stop aborts the upstream HTTP request');
+  const stopped = page.locator('.chat-msg.user').last();
+  assert.equal(await stopped.getByText('已停止', { exact: true }).count(), 1);
+  assert.equal(await page.evaluate(() => state.chatMessages.filter(message => message.role === 'assistant').length), responseCount);
+  await page.locator('#chat-input').hover();
+  const messageActions = stopped.locator('.chat-message-actions');
+  assert.equal(await messageActions.evaluate(element => getComputedStyle(element).opacity), '0');
+  await stopped.locator('.chat-bubble').hover();
+  assert.equal(await messageActions.evaluate(element => getComputedStyle(element).opacity), '1');
+  await stopped.getByRole('button', { name: '复制消息' }).click();
+  assert.equal(await page.evaluate(() => window.copiedChatText), stoppedQuestion);
+  await stopped.getByRole('button', { name: '编辑消息' }).click();
+  const revisedQuestion = '这是编辑后重新发送的消息。';
+  await page.getByRole('textbox', { name: '编辑消息' }).fill(revisedQuestion);
+  await page.getByRole('button', { name: '重新发送' }).click();
+  await page.waitForFunction(() => !state.chatSending);
+  assert.equal(requests.at(-1).input.at(-1).content, revisedQuestion);
+  assert.equal(await page.getByText(stoppedQuestion, { exact: true }).count(), 1);
+  const latestReply = page.locator('.chat-msg.assistant').last();
+  await latestReply.locator('.chat-bubble').hover();
+  await latestReply.getByRole('button', { name: '复制消息' }).click();
+  assert.match(await page.evaluate(() => window.copiedChatText), /关键路径/);
   assert.deepEqual(errors, []);
   const result = { passed: true, realIPCAndHTTP: true, homepageSynced: true,
     qaAndHistory: true, semanticTaskProgressAndProject: true, creationConfirmationRequired: true,
     workStatusAutoSync: true, linkedMilestonesAndProgress: true, overdueAndReportSync: true,
     failureRetry: true, modelSwitch: true, messageModelLabels: true, inFlightModelSwitch: true,
     safetyPanelRemoved: true, composerFixedAtBottom: true, persistedAcrossRestart: true,
+    composerGrowsAndFollowsCaret: true, projectIntakeNameConfirmation: true, projectConfirmationKeepsScroll: true,
+    abortsModelRequest: true, hoverMessageActions: true, editAndResend: true, copiesBothRoles: true,
     durableConversationMemory: true, fullHistoryPreserved: true, summaryReuseAfterRestart: true,
     summaries: summaries.length, requests: requests.length, profile };
   writeFileSync(join(evidence, 'chat-audit.json'), JSON.stringify(result, null, 2));

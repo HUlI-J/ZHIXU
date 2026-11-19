@@ -141,13 +141,26 @@ else {
       checkSender(event);
       return polish(payload);
     });
-    ipcMain.handle('workbench:chat', (event, payload: unknown) => {
+    const chatRequests = new Map<string, AbortController>();
+    const chatRequestKey = (sender: number, requestId: unknown) =>
+      typeof requestId === 'number' && Number.isSafeInteger(requestId) && requestId > 0 ? `${sender}:${requestId}` : '';
+    function handleChatRequest(channel: string, run: typeof chat | typeof summarizeChat) {
+      ipcMain.handle(channel, async (event, payload: unknown, requestId?: number) => {
+        checkSender(event);
+        const key = chatRequestKey(event.sender.id, requestId);
+        if (!key) return run(payload);
+        if (chatRequests.has(key)) throw new Error('此对话请求正在处理');
+        const controller = new AbortController();
+        chatRequests.set(key, controller);
+        try { return await run(payload, controller.signal); }
+        finally { chatRequests.delete(key); }
+      });
+    }
+    handleChatRequest('workbench:chat', chat);
+    handleChatRequest('workbench:chat-summary', summarizeChat);
+    ipcMain.handle('workbench:chat-cancel', (event, requestId: unknown) => {
       checkSender(event);
-      return chat(payload);
-    });
-    ipcMain.handle('workbench:chat-summary', (event, payload: unknown) => {
-      checkSender(event);
-      return summarizeChat(payload);
+      chatRequests.get(chatRequestKey(event.sender.id, requestId))?.abort();
     });
     ipcMain.handle('workbench:capture-task', (event, payload: unknown) => {
       checkSender(event);
@@ -219,7 +232,8 @@ else {
     };
     remoteAccess = new RemoteAccess(join(dataDir, 'remote'), {
       assets: join(import.meta.dirname, '../renderer'), shared,
-      invoke: (operation, payload) => calls[operation](payload),
+      invoke: (operation, payload, signal) => operation === 'chat' ? chat(payload, signal) :
+        operation === 'chat-summary' ? summarizeChat(payload, signal) : calls[operation](payload),
       importDocument: async (name, bytes) => {
         if (documentImportBusy) throw new Error('正在处理另一份附件，请稍候');
         documentImportBusy = true;

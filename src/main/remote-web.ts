@@ -34,7 +34,7 @@ export interface RemoteWebOptions {
   assets: string;
   shared: SharedWorkbench;
   password: { salt: string; hash: string };
-  invoke(operation: string, payload: unknown): Promise<unknown>;
+  invoke(operation: string, payload: unknown, signal?: AbortSignal): Promise<unknown>;
   importDocument(name: string, bytes: Uint8Array): Promise<unknown>;
   download(operation: string, payload: unknown): Promise<{ bytes: Buffer; name: string }>;
 }
@@ -185,10 +185,16 @@ export class RemoteWeb {
         this.limit('model:' + session, 600);
         const current = this.options.shared.load();
         if (!current) throw new HTTPError('工作数据未准备好', 503);
-        const result = await this.options.invoke(operation, remotePayload(operation, payload, current));
-        this.json(response, 200, result);
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        response.once('close', abort);
+        try {
+          const result = await this.options.invoke(operation, remotePayload(operation, payload, current), controller.signal);
+          if (!response.destroyed) this.json(response, 200, result);
+        } finally { response.off('close', abort); }
       } finally { this.active--; }
     } catch (error) {
+      if (response.destroyed) return;
       if (response.headersSent) { response.destroy(); return; }
       const status = (error as { status?: number }).status;
       this.json(response, status || 400, { message: error instanceof SyntaxError ? '请求内容无效，请刷新后重试' :

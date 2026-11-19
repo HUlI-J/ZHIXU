@@ -22,14 +22,20 @@ function render() {
   const topbar = document.getElementById('topbar-root');
   const view = document.getElementById('view');
   if (!sidebar || !topbar || !view) return;
+  const previousThread = state.view === 'chat' ? document.getElementById('chat-thread') : null;
+  const previousChatTop = previousThread?.scrollTop || 0;
 
   sidebar.innerHTML = renderSidebar();
   topbar.innerHTML = renderTopbar();
-  view.className = 'view view-enter' + (state.view === 'chat' ? ' view-chat' : '');
+  view.className = 'view' + (previousThread ? '' : ' view-enter') + (state.view === 'chat' ? ' view-chat' : '');
   view.innerHTML = renderView();
   mountWorkspace();
   mountPlugins();
-  if (state.view === 'chat') window.scrollTo(0, 0);
+  if (state.view === 'chat') {
+    window.scrollTo(0, 0);
+    resizeChatInput(document.getElementById('chat-input'));
+    document.getElementById('chat-thread')?.scrollTo({ top: previousChatTop, behavior: 'instant' });
+  }
 
   const brand = appName();
   const titles = {
@@ -404,6 +410,24 @@ function handleClick(e) {
     case 'chat-send':
       sendChat();
       break;
+    case 'chat-stop':
+      stopChat();
+      break;
+    case 'chat-message-copy': {
+      const message = state.chatMessages?.find(item => item.id === el.dataset.id);
+      if (message) copyLocalText(chatMessageText(message), '复制消息');
+      break;
+    }
+    case 'chat-message-edit':
+      openChatMessageEditor(el.dataset.id);
+      break;
+    case 'chat-edit-cancel':
+      state.chatEditing = null;
+      render();
+      break;
+    case 'chat-edit-send':
+      resendEditedChatMessage();
+      break;
     case 'chat-earlier':
       showEarlierChat();
       break;
@@ -455,7 +479,16 @@ function handleClick(e) {
 }
 
 function handleInput(e) {
-  if (e.target.id === 'chat-input') state.chatDraft = e.target.value;
+  if (e.target.id === 'chat-message-edit-input' && state.chatEditing) state.chatEditing.text = e.target.value;
+  if (e.target.id === 'chat-input') {
+    state.chatDraft = e.target.value;
+    resizeChatInput(e.target, true);
+  }
+  const projectCardId = e.target.dataset?.chatProjectName;
+  if (projectCardId) {
+    const card = state.chatMessages.find(message => message.actionCard?.id === projectCardId)?.actionCard;
+    if (card?.type === 'project' && card.status === 'pending') card.name = e.target.value;
+  }
   if (e.target.id === 'workflow-input') state.workflowDraft = e.target.value;
   if (e.target.id === 'command-input') {
     filterCommand(e.target.value);
@@ -704,6 +737,7 @@ async function boot() {
   document.addEventListener('input', handleInput);
   document.addEventListener('change', handleChange);
   document.addEventListener('keydown', handleKeydown);
+  window.addEventListener('resize', () => resizeChatInput(document.getElementById('chat-input')));
   document.addEventListener('focusin', event => {
     if (event.target.id === 'report-share-link') event.target.select();
   });
