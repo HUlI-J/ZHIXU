@@ -44,7 +44,7 @@ jobs:
           }
 
       - name: Build and package
-        run: npm run dist
+        run: npm run dist -- --publish never
 
       - name: Prepare release assets
         shell: pwsh
@@ -94,5 +94,6 @@ jobs:
           $url = gh api repos/HUlI-J/ZHIXU/releases/latest --jq '.assets[] | select(.name=="latest.yml") | .browser_download_url'
           if (-not $url) { throw 'latest.yml asset missing from published release' }
           $yml = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+          if ($yml -is [byte[]]) { $yml = [Text.Encoding]::UTF8.GetString($yml) }
           if ($yml -notmatch "version:\s*${{ inputs.version }}") { throw 'Published latest.yml version mismatch' }
           Write-Output "Release v${{ inputs.version }} published and verified as update feed."
